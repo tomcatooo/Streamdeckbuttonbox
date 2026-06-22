@@ -9346,14 +9346,14 @@ let TelemetryButtonAction = (() => {
             this._cache.delete(ev.action.id);
         }
         onKeyDown(ev) {
-            const input = ev.payload.settings.triggerInput?.trim();
-            if (input)
-                this._simhub.triggerInputPressed(input);
+            const role = ev.payload.settings.controlMapperRole?.trim();
+            if (role)
+                this._simhub.startRole(role).catch(() => { });
         }
         onKeyUp(ev) {
-            const input = ev.payload.settings.triggerInput?.trim();
-            if (input)
-                this._simhub.triggerInputReleased(input);
+            const role = ev.payload.settings.controlMapperRole?.trim();
+            if (role)
+                this._simhub.stopRole(role).catch(() => { });
         }
         onDidReceiveSettings(ev) {
             if (!ev.action.isKey())
@@ -9439,7 +9439,7 @@ function resolveConfig(s) {
         icon: s.icon ?? preset?.icon ?? "",
         threshold: s.threshold ?? "0.5",
         gameMappings: s.gameMappings ?? [],
-        triggerInput: s.triggerInput ?? "",
+        controlMapperRole: s.controlMapperRole ?? "",
     };
 }
 
@@ -9574,14 +9574,24 @@ class SimHubClient extends EventEmitter$1 {
             this.emit("update", this._data);
         }
     }
-    triggerInput(name) {
-        this._send(`trigger-input ${name}`);
+    // Control Mapper role management via SimHub HTTP API (port 8888).
+    // ownerId scopes the start/stop so only our plugin can release what it started.
+    async startRole(roleName) {
+        if (!roleName)
+            return;
+        await this._rolePost("StartRole", roleName);
     }
-    triggerInputPressed(name) {
-        this._send(`trigger-input-pressed ${name}`);
+    async stopRole(roleName) {
+        if (!roleName)
+            return;
+        await this._rolePost("StopRole", roleName);
     }
-    triggerInputReleased(name) {
-        this._send(`trigger-input-released ${name}`);
+    async _rolePost(action, roleName) {
+        const body = new URLSearchParams({ ownerId: "com.simhub.buttonbox", roleName });
+        await fetch(`http://127.0.0.1:8888/api/ControlMapper/${action}/`, {
+            method: "POST",
+            body,
+        });
     }
     _send(msg) {
         this._socket?.write(msg + "\n");

@@ -136,6 +136,23 @@
       color: #555;
     }
 
+    .btn-refresh {
+      flex: 0 0 26px;
+      width: 26px;
+      height: 26px;
+      background: #1e2a1e;
+      border: 1px solid #2a4a2a;
+      border-radius: 4px;
+      color: #66aa66;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+    .btn-refresh:hover { background: #223322; }
+
     #status {
       font-size: 11px;
       padding: 4px 8px;
@@ -237,12 +254,14 @@
   <hr>
   <div class="section">Control Mapper</div>
   <div class="row">
-    <label>Input name</label>
-    <input type="text" id="triggerInput" placeholder="e.g. Headlights">
+    <label>Role</label>
+    <select id="controlMapperRole"><option value="">— none —</option></select>
+    <button class="btn-refresh" id="btn-refresh-roles" title="Reload roles from SimHub">↻</button>
   </div>
+  <div id="roles-status" class="hint"></div>
   <div class="hint">
-    Optional. SimHub Control Mapper input to trigger when this button is pressed.<br>
-    The name must match exactly what you configured in SimHub's Control Mapper.
+    Starts this role while the button is held; stops it on release.<br>
+    Requires SimHub's web server to be enabled (SimHub Settings → Web server).
   </div>
 
   <div id="status"></div>
@@ -260,7 +279,7 @@
     aircon:         { property: 'ShakeItWindPlugin.IsEnabled', label: 'A/C',  colorOff: '#222222', colorOn: '#00AAFF', icon: 'fan' },
   };
 
-  const SCALAR_FIELDS = ['property', 'label', 'colorOff', 'colorOn', 'icon', 'threshold', 'triggerInput'];
+  const SCALAR_FIELDS = ['property', 'label', 'colorOff', 'colorOn', 'icon', 'threshold'];
 
   let settings = {};
   let piUUID   = null;
@@ -287,6 +306,38 @@
 
     populate();
     bindEvents();
+    loadRoles();
+  }
+
+  // ── Control Mapper roles ─────────────────────────────────────────────────────
+  async function loadRoles() {
+    const sel    = $('controlMapperRole');
+    const status = $('roles-status');
+    status.textContent = 'Loading…';
+    try {
+      const res   = await fetch('http://localhost:8888/api/ControlMapper/GetRoles', { signal: AbortSignal.timeout(3000) });
+      const roles = await res.json();
+      const saved = settings.controlMapperRole ?? '';
+      sel.innerHTML = '<option value="">— none —</option>';
+      for (const r of roles) {
+        const opt = document.createElement('option');
+        opt.value = r;
+        opt.textContent = r;
+        if (r === saved) opt.selected = true;
+        sel.appendChild(opt);
+      }
+      status.textContent = roles.length ? `${roles.length} role${roles.length === 1 ? '' : 's'} found` : 'No roles defined in SimHub';
+    } catch {
+      status.textContent = 'SimHub web server unreachable — enable it in SimHub Settings → Web server';
+      sel.innerHTML = '<option value="">— none —</option>';
+      if (settings.controlMapperRole) {
+        const opt = document.createElement('option');
+        opt.value = settings.controlMapperRole;
+        opt.textContent = settings.controlMapperRole + ' (saved)';
+        opt.selected = true;
+        sel.appendChild(opt);
+      }
+    }
   }
 
   // ── Populate form from settings ─────────────────────────────────────────────
@@ -296,6 +347,7 @@
       if (settings[f] != null) $(f).value = settings[f];
     }
     renderMappings(settings.gameMappings ?? []);
+    // roles dropdown is populated async — loadRoles() handles restoring saved value
   }
 
   // ── Game mappings UI ────────────────────────────────────────────────────────
@@ -376,13 +428,17 @@
       list.appendChild(makeMappingRow({ game: '', property: '' }, idx));
       list.lastElementChild.querySelector('input').focus();
     });
+
+    $('controlMapperRole').addEventListener('change', save);
+    $('btn-refresh-roles').addEventListener('click', () => loadRoles());
   }
 
   // ── Save ────────────────────────────────────────────────────────────────────
   function save() {
     const next = { preset: $('preset').value };
     for (const f of SCALAR_FIELDS) { const el = $(f); if (el) next[f] = el.value; }
-    next.gameMappings = readMappings();
+    next.gameMappings        = readMappings();
+    next.controlMapperRole   = $('controlMapperRole').value;
     settings = next;
 
     if (ws?.readyState === WebSocket.OPEN) {

@@ -25,12 +25,12 @@ export type ButtonSettings = {
   icon?: string;
   threshold?: string;
   gameMappings?: GameMapping[]; // per-game overrides
-  triggerInput?: string;    // SimHub Control Mapper input name to trigger on press
+  controlMapperRole?: string; // SimHub Control Mapper role to start/stop on press/release
 };
 
-type ResolvedConfig = Required<Omit<ButtonSettings, "preset" | "gameMappings" | "triggerInput">> & {
+type ResolvedConfig = Required<Omit<ButtonSettings, "preset" | "gameMappings" | "controlMapperRole">> & {
   gameMappings: GameMapping[];
-  triggerInput: string;
+  controlMapperRole: string;
 };
 
 type ActionCache = {
@@ -87,13 +87,13 @@ export class TelemetryButtonAction extends SingletonAction<ButtonSettings> {
   }
 
   override onKeyDown(ev: KeyDownEvent<ButtonSettings>): void {
-    const input = ev.payload.settings.triggerInput?.trim();
-    if (input) this._simhub.triggerInputPressed(input);
+    const role = ev.payload.settings.controlMapperRole?.trim();
+    if (role) this._simhub.startRole(role).catch(() => {});
   }
 
   override onKeyUp(ev: KeyUpEvent<ButtonSettings>): void {
-    const input = ev.payload.settings.triggerInput?.trim();
-    if (input) this._simhub.triggerInputReleased(input);
+    const role = ev.payload.settings.controlMapperRole?.trim();
+    if (role) this._simhub.stopRole(role).catch(() => {});
   }
 
   override onDidReceiveSettings(ev: DidReceiveSettingsEvent<ButtonSettings>): void {
@@ -179,6 +179,6 @@ function resolveConfig(s: ButtonSettings): ResolvedConfig {
     icon:         s.icon         ?? preset?.icon      ?? "",
     threshold:    s.threshold    ?? "0.5",
     gameMappings: s.gameMappings ?? [],
-    triggerInput: s.triggerInput ?? "",
+    controlMapperRole: s.controlMapperRole ?? "",
   };
 }

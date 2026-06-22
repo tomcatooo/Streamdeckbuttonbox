@@ -153,16 +153,24 @@ export class SimHubClient extends EventEmitter {
     }
   }
 
-  triggerInput(name: string): void {
-    this._send(`trigger-input ${name}`);
+  // Control Mapper role management via SimHub HTTP API (port 8888).
+  // ownerId scopes the start/stop so only our plugin can release what it started.
+  async startRole(roleName: string): Promise<void> {
+    if (!roleName) return;
+    await this._rolePost("StartRole", roleName);
   }
 
-  triggerInputPressed(name: string): void {
-    this._send(`trigger-input-pressed ${name}`);
+  async stopRole(roleName: string): Promise<void> {
+    if (!roleName) return;
+    await this._rolePost("StopRole", roleName);
   }
 
-  triggerInputReleased(name: string): void {
-    this._send(`trigger-input-released ${name}`);
+  private async _rolePost(action: string, roleName: string): Promise<void> {
+    const body = new URLSearchParams({ ownerId: "com.simhub.buttonbox", roleName });
+    await fetch(`http://127.0.0.1:8888/api/ControlMapper/${action}/`, {
+      method: "POST",
+      body,
+    });
   }
 
   private _send(msg: string): void {
