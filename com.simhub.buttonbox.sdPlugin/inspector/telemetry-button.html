@@ -160,6 +160,7 @@
       <option value="tc">TC Active</option>
       <option value="engineIgnition">Engine Ignition</option>
       <option value="flag">Yellow Flag</option>
+      <option value="aircon">A/C Wind Fans</option>
     </select>
   </div>
 
@@ -217,6 +218,7 @@
       <option value="fuel">Fuel</option>
       <option value="ignition">Ignition (star)</option>
       <option value="brake">Brake (rings)</option>
+      <option value="fan">Fan / A/C</option>
     </select>
   </div>
 
@@ -244,6 +246,7 @@
     tc:             { property: 'dcp.gd.TcActive',         label: 'TC',       colorOff: '#222222', colorOn: '#FF8800', icon: 'tc' },
     engineIgnition: { property: 'dcp.gd.EngineIgnitionOn', label: 'IGNITION', colorOff: '#222222', colorOn: '#FF3333', icon: 'ignition' },
     flag:           { property: 'dcp.gd.Flag_Yellow',      label: 'FLAG',     colorOff: '#222222', colorOn: '#FFD700', icon: 'flag' },
+    aircon:         { property: 'ShakeItWindPlugin.IsEnabled', label: 'A/C',  colorOff: '#222222', colorOn: '#00AAFF', icon: 'fan' },
   };
 
   const SCALAR_FIELDS = ['property', 'label', 'colorOff', 'colorOn', 'icon', 'threshold'];

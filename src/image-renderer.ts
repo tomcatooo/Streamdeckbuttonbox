@@ -31,6 +31,9 @@ const ICON_PATHS: Record<string, string> = {
     "M36 10l6 18h18L46 40l6 18-16-12-16 12 6-18L12 28h18L36 10z",
   brake:
     "M36 14C23.8 14 14 23.8 14 36s9.8 22 22 22 22-9.8 22-22-9.8-22-22-22zm0 6c8.8 0 16 7.2 16 16s-7.2 16-16 16-16-7.2-16-16 7.2-16 16-16zm0 4c-6.6 0-12 5.4-12 12s5.4 12 12 12 12-5.4 12-12-5.4-12-12-12z",
+  // 4-blade fan / propeller (blades meet at centre, arc on outer edge of each)
+  fan:
+    "M36 36 L32 24 A8 8 0 0 1 40 24 Z M36 36 L48 32 A8 8 0 0 1 48 40 Z M36 36 L40 48 A8 8 0 0 1 32 48 Z M36 36 L24 40 A8 8 0 0 1 24 32 Z M36 31 a5 5 0 0 0 0 10 a5 5 0 0 0 0-10",
 };
 
 export function renderButtonSvg(opts: RenderOptions): string {

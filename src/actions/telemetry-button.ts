@@ -45,6 +45,7 @@ const PRESETS: Record<string, Omit<ButtonSettings, "preset" | "threshold" | "gam
   tc:             { property: "dcp.gd.TcActive",         label: "TC",       colorOff: "#222222", colorOn: "#FF8800", icon: "tc" },
   engineIgnition: { property: "dcp.gd.EngineIgnitionOn", label: "IGNITION", colorOff: "#222222", colorOn: "#FF3333", icon: "ignition" },
   flag:           { property: "dcp.gd.Flag_Yellow",      label: "FLAG",     colorOff: "#222222", colorOn: "#FFD700", icon: "flag" },
+  aircon:         { property: "ShakeItWindPlugin.IsEnabled", label: "A/C",  colorOff: "#222222", colorOn: "#00AAFF", icon: "fan" },
 };
 
 @action({ UUID: "com.simhub.buttonbox.telemetrybutton" })
