@@ -9252,13 +9252,76 @@ const ICON_SVG = {
         '<rect x="33" y="8" width="6" height="22" rx="3" fill="IC" transform="rotate(110 36 36)"/>' +
         '<rect x="33" y="8" width="6" height="22" rx="3" fill="IC" transform="rotate(200 36 36)"/>' +
         '<rect x="33" y="8" width="6" height="22" rx="3" fill="IC" transform="rotate(290 36 36)"/>',
+    // ERS / KERS: lightning bolt
+    ers: '<polygon points="38,8 20,40 34,40 28,64 46,32 32,32" fill="IC"/>',
+    // Steering wheel (FFB)
+    wheel: '<circle cx="36" cy="36" r="26" fill="IC"/>' +
+        '<circle cx="36" cy="36" r="20" fill="BG"/>' +
+        '<rect x="34" y="16" width="4" height="14" fill="IC"/>' +
+        '<rect x="34" y="16" width="4" height="14" fill="IC" transform="rotate(120 36 36)"/>' +
+        '<rect x="34" y="16" width="4" height="14" fill="IC" transform="rotate(240 36 36)"/>' +
+        '<circle cx="36" cy="36" r="5" fill="IC"/>',
+    // DRS: rear wing + up-arrow
+    drs: '<polygon points="36,10 44,22 28,22" fill="IC"/>' +
+        '<rect x="8"  y="22" width="56" height="8" rx="2" fill="IC"/>' +
+        '<rect x="8"  y="18" width="7"  height="18" rx="2" fill="IC"/>' +
+        '<rect x="57" y="18" width="7"  height="18" rx="2" fill="IC"/>',
+    // Camera: body + viewfinder bump + lens
+    camera: '<rect x="8"  y="22" width="44" height="30" rx="4" fill="IC"/>' +
+        '<rect x="42" y="14" width="12" height="10" rx="3" fill="IC"/>' +
+        '<circle cx="29" cy="37" r="11" fill="BG"/>' +
+        '<circle cx="29" cy="37" r="8"  fill="IC"/>' +
+        '<circle cx="29" cy="37" r="4"  fill="BG"/>',
+    // Wiper: arc sweep + pivot
+    wiper: '<polygon points="10,46 36,30 62,46 54,52 36,38 18,52" fill="IC"/>' +
+        '<circle cx="36" cy="60" r="5" fill="IC"/>',
+    // Tyre: concentric rings (tyre + rim + hub)
+    tyre: '<circle cx="36" cy="36" r="26" fill="IC"/>' +
+        '<circle cx="36" cy="36" r="21" fill="BG"/>' +
+        '<circle cx="36" cy="36" r="16" fill="IC"/>' +
+        '<circle cx="36" cy="36" r="10" fill="BG"/>' +
+        '<circle cx="36" cy="36" r="4"  fill="IC"/>',
+    // Differential: two rings + connecting bar
+    diff: '<circle cx="24" cy="36" r="14" fill="IC"/>' +
+        '<circle cx="24" cy="36" r="9"  fill="BG"/>' +
+        '<circle cx="48" cy="36" r="14" fill="IC"/>' +
+        '<circle cx="48" cy="36" r="9"  fill="BG"/>' +
+        '<rect x="24" y="32" width="24" height="8" fill="IC"/>' +
+        '<rect x="27" y="34" width="18" height="4" fill="BG"/>',
+    // Speaker / volume
+    speaker: '<rect x="10" y="27" width="12" height="18" rx="2" fill="IC"/>' +
+        '<polygon points="22,27 48,13 48,59 22,45" fill="IC"/>',
+    // Chat / speech bubble
+    chat: '<rect x="6"  y="8"  width="60" height="40" rx="8" fill="IC"/>' +
+        '<polygon points="12,48 24,48 16,62" fill="IC"/>',
+    // Microphone
+    mic: '<rect x="28" y="8"  width="16" height="30" rx="8" fill="IC"/>' +
+        '<rect x="18" y="30" width="36" height="4"  rx="2" fill="IC"/>' +
+        '<rect x="18" y="30" width="4"  height="14" rx="2" fill="IC"/>' +
+        '<rect x="50" y="30" width="4"  height="14" rx="2" fill="IC"/>' +
+        '<rect x="34" y="42" width="4"  height="14" fill="IC"/>' +
+        '<rect x="22" y="56" width="28" height="5"  rx="2" fill="IC"/>',
+    // Home / house
+    home: '<polygon points="36,6 64,34 8,34" fill="IC"/>' +
+        '<rect x="14" y="32" width="44" height="30" rx="2" fill="IC"/>' +
+        '<rect x="28" y="44" width="16" height="18" fill="BG"/>',
+    // Media pause
+    pause: '<rect x="16" y="14" width="14" height="44" rx="3" fill="IC"/>' +
+        '<rect x="42" y="14" width="14" height="44" rx="3" fill="IC"/>',
+    // Media play
+    play: '<polygon points="16,10 16,62 58,36" fill="IC"/>',
+    // Navigation arrows
+    arrow_left: '<polygon points="12,36 36,10 36,22 60,22 60,50 36,50 36,62" fill="IC"/>',
+    arrow_right: '<polygon points="60,36 36,10 36,22 12,22 12,50 36,50 36,62" fill="IC"/>',
+    arrow_up: '<polygon points="36,10 62,36 50,36 50,62 22,62 22,36 10,36" fill="IC"/>',
+    arrow_down: '<polygon points="36,62 62,36 50,36 50,10 22,10 22,36 10,36" fill="IC"/>',
 };
-// Lovely Sim Racing palette — fixed regardless of user colour settings
+// Blue backlit button palette — fixed regardless of user colour settings
 const LSR = {
-    offBg: "#0f0f0f",
-    offBorder: "#5a0000",
-    onBg: "#cc0000",
-    onBorder: "#ff3c3c",
+    offBg: "#080c14",
+    offBorder: "#1a3a6a",
+    onBg: "#0055cc",
+    onBorder: "#4499ff",
 };
 function renderButtonSvg(opts) {
     return opts.isActive ? renderOn(opts.label, opts.icon) : renderOff(opts.label, opts.icon);
