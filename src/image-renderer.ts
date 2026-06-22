@@ -172,6 +172,14 @@ const ICON_SVG: Record<string, string> = {
   play:
     '<polygon points="16,10 16,62 58,36" fill="IC"/>',
 
+  // Engine starter: battery outline + lightning bolt
+  engine:
+    '<rect x="22" y="16" width="10" height="8"  rx="2" fill="IC"/>' +
+    '<rect x="40" y="16" width="10" height="8"  rx="2" fill="IC"/>' +
+    '<rect x="14" y="22" width="44" height="32" rx="3" fill="IC"/>' +
+    '<rect x="18" y="26" width="36" height="24" rx="1" fill="BG"/>' +
+    '<polygon points="38,28 26,41 34,41 30,50 42,37 34,37" fill="IC"/>',
+
   // Navigation arrows
   arrow_left:
     '<polygon points="12,36 36,10 36,22 60,22 60,50 36,50 36,62" fill="IC"/>',

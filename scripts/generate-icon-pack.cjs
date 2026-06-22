@@ -232,6 +232,15 @@ const ICONS = {
     { type: 'polygon', pts: [[16,10],[16,62],[58,36]], color: 'icon' },
   ],
 
+  // Engine starter: battery outline + lightning bolt
+  engine: [
+    { type: 'rect',    x: 22, y: 16, w: 10, h:  8, color: 'icon' },  // left terminal
+    { type: 'rect',    x: 40, y: 16, w: 10, h:  8, color: 'icon' },  // right terminal
+    { type: 'rect',    x: 14, y: 22, w: 44, h: 32, color: 'icon' },  // battery body
+    { type: 'rect',    x: 18, y: 26, w: 36, h: 24, color: 'bg'   },  // inner punch → outline
+    { type: 'polygon', pts: [[38,28],[26,41],[34,41],[30,50],[42,37],[34,37]], color: 'icon' },
+  ],
+
   // Navigation arrows
   arrow_left: [
     { type: 'polygon', pts: [[12,36],[36,10],[36,22],[60,22],[60,50],[36,50],[36,62]], color: 'icon' },
