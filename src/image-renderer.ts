@@ -89,10 +89,16 @@ const ICON_SVG: Record<string, string> = {
     '<rect x="33" y="8" width="6" height="22" rx="3" fill="IC" transform="rotate(290 36 36)"/>',
 };
 
+// Lovely Sim Racing palette — fixed regardless of user colour settings
+const LSR = {
+  offBg:     "#0f0f0f",
+  offBorder: "#5a0000",
+  onBg:      "#cc0000",
+  onBorder:  "#ff3c3c",
+};
+
 export function renderButtonSvg(opts: RenderOptions): string {
-  return opts.isActive
-    ? renderOn(opts.label, opts.colorOn ?? "#1a6fd4", opts.icon)
-    : renderOff(opts.label, opts.colorOff ?? "#1a1a1a", opts.icon);
+  return opts.isActive ? renderOn(opts.label, opts.icon) : renderOff(opts.label, opts.icon);
 }
 
 function buildIconSvg(icon: string, iconColor: string, bgColor: string): string {
@@ -101,75 +107,36 @@ function buildIconSvg(icon: string, iconColor: string, bgColor: string): string 
   return def.replace(/\bIC\b/g, iconColor).replace(/\bBG\b/g, bgColor);
 }
 
-// OFF — near-black, everything dim
-function renderOff(label: string, colorOff: string, icon?: string): string {
-  const bg        = darken(colorOff, 0.15);
-  const border    = lighten(colorOff, 0.1);
-  const iconColor = "#999999";
-  const textColor = "#707070";
-  const labelY    = icon && ICON_SVG[icon] ? 67 : 40;
-
+// OFF — near-black bg, dark crimson border, white icon/text
+function renderOff(label: string, icon?: string): string {
+  const labelY  = icon && ICON_SVG[icon] ? 67 : 40;
   const iconSvg = icon && ICON_SVG[icon]
-    ? `<g transform="translate(11,4) scale(0.6944)">${buildIconSvg(icon, iconColor, bg)}</g>`
+    ? `<g transform="translate(11,4) scale(0.6944)">${buildIconSvg(icon, "#ffffff", LSR.offBg)}</g>`
     : "";
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">`,
-    `<rect x="0" y="0" width="72" height="72" rx="8" fill="${bg}" stroke="${border}" stroke-width="1"/>`,
+    `<rect x="0" y="0" width="72" height="72" rx="10" fill="${LSR.offBg}" stroke="${LSR.offBorder}" stroke-width="3"/>`,
     iconSvg,
-    `<text x="36" y="${labelY}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="${textColor}" letter-spacing="0.5">${escXml(label)}</text>`,
+    `<text x="36" y="${labelY}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="#ffffff" letter-spacing="0.5">${escXml(label)}</text>`,
     `</svg>`,
   ].join("");
 }
 
-// ON — full colour, thick border, glow, corner accents
-function renderOn(label: string, colorOn: string, icon?: string): string {
-  const bg        = colorOn;
-  const bright    = lighten(colorOn, 0.4);
-  const glow      = lighten(colorOn, 0.25);
-  const iconColor = "#ffffff";
-  const textColor = "#ffffff";
-  const labelY    = icon && ICON_SVG[icon] ? 67 : 40;
-
+// ON — red bg, bright red border, white icon/text
+function renderOn(label: string, icon?: string): string {
+  const labelY  = icon && ICON_SVG[icon] ? 67 : 40;
   const iconSvg = icon && ICON_SVG[icon]
-    ? `<g transform="translate(11,4) scale(0.6944)">${buildIconSvg(icon, iconColor, bg)}</g>`
+    ? `<g transform="translate(11,4) scale(0.6944)">${buildIconSvg(icon, "#ffffff", LSR.onBg)}</g>`
     : "";
-
-  const corners = [
-    `<path d="M4 14 L4 4 L14 4"   stroke="${bright}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
-    `<path d="M58 4 L68 4 L68 14" stroke="${bright}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
-    `<path d="M4 58 L4 68 L14 68" stroke="${bright}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
-    `<path d="M58 68 L68 68 L68 58" stroke="${bright}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
-  ].join("");
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">`,
-    `<defs><filter id="glow" x="-40%" y="-40%" width="180%" height="180%">`,
-    `<feGaussianBlur stdDeviation="4" result="b"/>`,
-    `<feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>`,
-    `</filter></defs>`,
-    `<rect x="1" y="1" width="70" height="70" rx="8" fill="none" stroke="${glow}" stroke-width="6" opacity="0.4" filter="url(#glow)"/>`,
-    `<rect x="2" y="2" width="68" height="68" rx="7" fill="${bg}" stroke="${bright}" stroke-width="2"/>`,
+    `<rect x="0" y="0" width="72" height="72" rx="10" fill="${LSR.onBg}" stroke="${LSR.onBorder}" stroke-width="3"/>`,
     iconSvg,
-    `<text x="36" y="${labelY}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="${textColor}" letter-spacing="0.5">${escXml(label)}</text>`,
-    corners,
+    `<text x="36" y="${labelY}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="#ffffff" letter-spacing="0.5">${escXml(label)}</text>`,
     `</svg>`,
   ].join("");
-}
-
-function lighten(hex: string, t: number): string { return blend(hex, "#ffffff", t); }
-function darken(hex: string, t: number): string  { return blend(hex, "#000000", t); }
-
-function blend(hex: string, target: string, t: number): string {
-  const [r1, g1, b1] = parseHex(hex);
-  const [r2, g2, b2] = parseHex(target);
-  const c = (a: number, b: number) => Math.round(Math.max(0, Math.min(255, a + (b - a) * t)));
-  return `#${[c(r1, r2), c(g1, g2), c(b1, b2)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-}
-
-function parseHex(hex: string): [number, number, number] {
-  const n = parseInt(hex.replace("#", ""), 16);
-  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 
 function escXml(s: string): string {
