@@ -43,18 +43,6 @@
 
     select:focus, input:focus { border-color: #5a8fd4; }
 
-    input[type="color"] {
-      flex: 0 0 44px;
-      height: 26px;
-      padding: 2px;
-      border: 1px solid #444;
-      border-radius: 4px;
-      background: #2a2a2a;
-      cursor: pointer;
-    }
-
-    .color-hint { flex: 1; font-size: 11px; color: #666; }
-
     hr { border: none; border-top: 1px solid #2e2e2e; margin: 10px 0; }
 
     .section {
@@ -162,7 +150,44 @@
 
     #status.warn { background: #3a2800; color: #ccaa44; }
     #status.ok   { background: #0e2e0e; color: #55cc55; }
+
+    /* Game name autocomplete pill */
+    #current-game-hint {
+      padding-left: 94px;
+      font-size: 10px;
+      color: #4a4a4a;
+      margin-bottom: 4px;
+    }
+    #current-game-hint span {
+      background: #1a2a3a;
+      border: 1px solid #2a4a6a;
+      border-radius: 3px;
+      color: #5599cc;
+      padding: 1px 6px;
+      cursor: pointer;
+    }
+    #current-game-hint span:hover { background: #1e344e; }
   </style>
+
+  <!-- Known SimHub game identifiers for autocomplete -->
+  <datalist id="game-list">
+    <option value="assettocorsa">Assetto Corsa</option>
+    <option value="assettocorsacompetizione">ACC</option>
+    <option value="iracingdata">iRacing</option>
+    <option value="rfactor2">rFactor 2</option>
+    <option value="automobilista2">Automobilista 2</option>
+    <option value="F12025">F1 2025</option>
+    <option value="F12024">F1 2024</option>
+    <option value="F12023">F1 2023</option>
+    <option value="PCARS2">Project CARS 2</option>
+    <option value="raceroom">RaceRoom</option>
+    <option value="dirtrally2">Dirt Rally 2.0</option>
+    <option value="WRCGameEA">WRC (EA)</option>
+    <option value="lemansultimate">Le Mans Ultimate</option>
+    <option value="gt7">Gran Turismo 7</option>
+    <option value="eurotruck2">Euro Truck Simulator 2</option>
+    <option value="americantruck">American Truck Simulator</option>
+  </datalist>
 </head>
 <body>
 
@@ -207,6 +232,10 @@
     (e.g. <code>acc.Physics.headlightsOn</code> for raw ACC data).
   </div>
 
+  <div id="current-game-hint" style="display:none">
+    Running: <span id="current-game-tag"></span>
+  </div>
+
   <div class="mapping-labels">
     <span>Game name (SimHub reports)</span>
     <span>Property for that game</span>
@@ -214,66 +243,6 @@
   </div>
   <div id="mappings-list"></div>
   <button class="btn-add" id="btn-add-mapping">+ Add game override</button>
-
-  <hr>
-  <div class="section">Appearance</div>
-
-  <div class="row">
-    <label>Label</label>
-    <input type="text" id="label" placeholder="BUTTON" maxlength="10">
-  </div>
-
-  <div class="row">
-    <label>Icon</label>
-    <select id="icon">
-      <option value="">None</option>
-      <optgroup label="Sim Racing">
-        <option value="headlights">Headlights / Sun</option>
-        <option value="pit">Pit Limiter (3 bars)</option>
-        <option value="abs">ABS (rings)</option>
-        <option value="tc">TC (warning triangle)</option>
-        <option value="flag">Flag</option>
-        <option value="fuel">Fuel canister</option>
-        <option value="ignition">Ignition / Power</option>
-        <option value="brake">Brake (concentric rings)</option>
-        <option value="fan">Fan / A/C</option>
-        <option value="ers">ERS / KERS (lightning)</option>
-        <option value="wheel">Steering wheel (FFB)</option>
-        <option value="drs">DRS (rear wing)</option>
-        <option value="tyre">Tyre / wheel</option>
-        <option value="diff">Differential</option>
-        <option value="wiper">Wiper</option>
-        <option value="camera">Camera</option>
-        <option value="engine">Engine starter (battery)</option>
-      </optgroup>
-      <optgroup label="Media / UI">
-        <option value="play">Play</option>
-        <option value="pause">Pause</option>
-        <option value="speaker">Speaker / Volume</option>
-        <option value="mic">Microphone</option>
-        <option value="chat">Chat / Radio</option>
-        <option value="home">Home</option>
-      </optgroup>
-      <optgroup label="Navigation">
-        <option value="arrow_up">Arrow Up</option>
-        <option value="arrow_down">Arrow Down</option>
-        <option value="arrow_left">Arrow Left</option>
-        <option value="arrow_right">Arrow Right</option>
-      </optgroup>
-    </select>
-  </div>
-
-  <div class="row">
-    <label>Off colour</label>
-    <input type="color" id="colorOff" value="#222222">
-    <span class="color-hint">inactive</span>
-  </div>
-
-  <div class="row">
-    <label>On colour</label>
-    <input type="color" id="colorOn" value="#1a6fd4">
-    <span class="color-hint">active</span>
-  </div>
 
   <hr>
   <div class="section">Control Mapper</div>
@@ -294,20 +263,21 @@
   'use strict';
 
   const PRESETS = {
-    headlights:     { property: 'dcp.gd.Headlights',      label: 'LIGHTS',   colorOff: '#222222', colorOn: '#FFD700', icon: 'headlights' },
-    pitLimiter:     { property: 'dcp.gd.PitLimiter',       label: 'PIT LIM',  colorOff: '#222222', colorOn: '#00CC44', icon: 'pit' },
-    abs:            { property: 'dcp.gd.ABSActive',        label: 'ABS',      colorOff: '#222222', colorOn: '#FF3333', icon: 'abs' },
-    tc:             { property: 'dcp.gd.TcActive',         label: 'TC',       colorOff: '#222222', colorOn: '#FF8800', icon: 'tc' },
-    engineIgnition: { property: 'dcp.gd.EngineIgnitionOn', label: 'IGNITION', colorOff: '#222222', colorOn: '#FF3333', icon: 'ignition' },
-    flag:           { property: 'dcp.gd.Flag_Yellow',      label: 'FLAG',     colorOff: '#222222', colorOn: '#FFD700', icon: 'flag' },
-    aircon:         { property: 'ShakeItWindPlugin.IsEnabled', label: 'A/C',  colorOff: '#222222', colorOn: '#00AAFF', icon: 'fan' },
+    headlights:     { property: 'dcp.gd.Headlights'          },
+    pitLimiter:     { property: 'dcp.gd.PitLimiter'          },
+    abs:            { property: 'dcp.gd.ABSActive'           },
+    tc:             { property: 'dcp.gd.TcActive'            },
+    engineIgnition: { property: 'dcp.gd.EngineIgnitionOn'    },
+    flag:           { property: 'dcp.gd.Flag_Yellow'         },
+    aircon:         { property: 'ShakeItWindPlugin.IsEnabled' },
   };
 
-  const SCALAR_FIELDS = ['property', 'label', 'colorOff', 'colorOn', 'icon', 'threshold'];
+  const SCALAR_FIELDS = ['property', 'threshold'];
 
-  let settings = {};
-  let piUUID   = null;
-  let ws       = null;
+  let settings    = {};
+  let piUUID      = null;
+  let ws          = null;
+  let currentGame = '';
 
   // ── Stream Deck PI bootstrap ────────────────────────────────────────────────
   function connectElgatoStreamDeckSocket(port, uuid, registerEvent, _info, actionInfoStr) {
@@ -322,15 +292,33 @@
     ws.onmessage = (evt) => {
       let msg;
       try { msg = JSON.parse(evt.data); } catch { return; }
+
       if (msg.event === 'didReceiveSettings') {
         settings = msg.payload?.settings ?? {};
         populate();
+      }
+
+      // Plugin sends us the currently-running game on PI open
+      if (msg.event === 'sendToPropertyInspector' && msg.payload?.type === 'currentGame') {
+        currentGame = msg.payload.game ?? '';
+        showCurrentGameHint(currentGame);
       }
     };
 
     populate();
     bindEvents();
     loadRoles();
+  }
+
+  // ── Current game hint bar ───────────────────────────────────────────────────
+  function showCurrentGameHint(game) {
+    if (!game) return;
+    const hint = $('current-game-hint');
+    const tag  = $('current-game-tag');
+    tag.textContent = game;
+    hint.style.display = '';
+    // Clicking the tag inserts a new override row pre-filled with the game name
+    tag.onclick = () => addMappingRow(game, '');
   }
 
   // ── Control Mapper roles ─────────────────────────────────────────────────────
@@ -371,7 +359,6 @@
       if (settings[f] != null) $(f).value = settings[f];
     }
     renderMappings(settings.gameMappings ?? []);
-    // roles dropdown is populated async — loadRoles() handles restoring saved value
   }
 
   // ── Game mappings UI ────────────────────────────────────────────────────────
@@ -389,29 +376,37 @@
     row.dataset.idx = idx;
 
     const gameInput = document.createElement('input');
-    gameInput.type = 'text';
+    gameInput.type        = 'text';
+    gameInput.setAttribute('list', 'game-list');
     gameInput.placeholder = 'e.g. assettocorsa';
-    gameInput.value = mapping.game ?? '';
+    gameInput.value       = mapping.game ?? '';
     gameInput.addEventListener('input', onMappingChange);
 
     const propInput = document.createElement('input');
-    propInput.type = 'text';
+    propInput.type        = 'text';
     propInput.placeholder = 'e.g. acc.Physics.headlightsOn';
-    propInput.value = mapping.property ?? '';
+    propInput.value       = mapping.property ?? '';
     propInput.addEventListener('input', onMappingChange);
 
     const removeBtn = document.createElement('button');
-    removeBtn.className = 'btn-remove';
+    removeBtn.className   = 'btn-remove';
     removeBtn.textContent = '×';
-    removeBtn.addEventListener('click', () => {
-      row.remove();
-      save();
-    });
+    removeBtn.addEventListener('click', () => { row.remove(); save(); });
 
     row.appendChild(gameInput);
     row.appendChild(propInput);
     row.appendChild(removeBtn);
     return row;
+  }
+
+  function addMappingRow(game, property) {
+    const list = $('mappings-list');
+    const row  = makeMappingRow({ game, property }, list.children.length);
+    list.appendChild(row);
+    // focus the property input if game is pre-filled, otherwise the game input
+    const inputs = row.querySelectorAll('input');
+    (game ? inputs[1] : inputs[0]).focus();
+    save();
   }
 
   function onMappingChange() { save(); }
@@ -420,7 +415,7 @@
     const rows = $('mappings-list').querySelectorAll('.mapping-row');
     const result = [];
     for (const row of rows) {
-      const inputs = row.querySelectorAll('input');
+      const inputs   = row.querySelectorAll('input');
       const game     = inputs[0].value.trim();
       const property = inputs[1].value.trim();
       if (game || property) result.push({ game, property });
@@ -446,12 +441,7 @@
       if (el) { el.addEventListener('input', save); el.addEventListener('change', save); }
     }
 
-    $('btn-add-mapping').addEventListener('click', () => {
-      const list = $('mappings-list');
-      const idx  = list.children.length;
-      list.appendChild(makeMappingRow({ game: '', property: '' }, idx));
-      list.lastElementChild.querySelector('input').focus();
-    });
+    $('btn-add-mapping').addEventListener('click', () => addMappingRow(currentGame, ''));
 
     $('controlMapperRole').addEventListener('change', save);
     $('btn-refresh-roles').addEventListener('click', () => loadRoles());
@@ -461,8 +451,8 @@
   function save() {
     const next = { preset: $('preset').value };
     for (const f of SCALAR_FIELDS) { const el = $(f); if (el) next[f] = el.value; }
-    next.gameMappings        = readMappings();
-    next.controlMapperRole   = $('controlMapperRole').value;
+    next.gameMappings      = readMappings();
+    next.controlMapperRole = $('controlMapperRole').value;
     settings = next;
 
     if (ws?.readyState === WebSocket.OPEN) {

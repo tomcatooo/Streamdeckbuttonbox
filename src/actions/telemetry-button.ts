@@ -4,31 +4,30 @@ import {
   KeyAction,
   KeyDownEvent,
   KeyUpEvent,
+  PropertyInspectorDidAppearEvent,
   SingletonAction,
+  streamDeck,
   WillAppearEvent,
   WillDisappearEvent,
 } from "@elgato/streamdeck";
-import { renderButtonSvg } from "../image-renderer";
 import type { SimHubClient, TelemetryData } from "../simhub-client";
 
 export type GameMapping = {
   game: string;     // SimHub game name, e.g. "assettocorsa" (case-insensitive match)
-  property: string; // SimHub property for that game, e.g. "dcp.gd.Headlights"
+  property: string; // SimHub property for that game
 };
 
 export type ButtonSettings = {
   preset?: string;
-  property?: string;        // default property (used when no game mapping matches)
-  label?: string;
-  colorOff?: string;
-  colorOn?: string;
-  icon?: string;
+  property?: string;
   threshold?: string;
-  gameMappings?: GameMapping[]; // per-game overrides
-  controlMapperRole?: string; // SimHub Control Mapper role to start/stop on press/release
+  gameMappings?: GameMapping[];
+  controlMapperRole?: string;
 };
 
-type ResolvedConfig = Required<Omit<ButtonSettings, "preset" | "gameMappings" | "controlMapperRole">> & {
+type ResolvedConfig = {
+  property: string;
+  threshold: string;
   gameMappings: GameMapping[];
   controlMapperRole: string;
 };
@@ -36,20 +35,17 @@ type ResolvedConfig = Required<Omit<ButtonSettings, "preset" | "gameMappings" | 
 type ActionCache = {
   settings: ButtonSettings;
   lastActive: boolean | null;
-  subscribedProperty: string; // what we actually asked SimHub to subscribe to
+  subscribedProperty: string;
 };
 
-// Built-in presets use dcp.gd.* (DataCorePlugin.GameData.*) typed properties
-// for the best performance. Untyped access works too — just omit the prefix.
-// Use `help` in a TCP connection to port 18082 to browse all available properties.
-const PRESETS: Record<string, Omit<ButtonSettings, "preset" | "threshold" | "gameMappings"> & { property: string }> = {
-  headlights:     { property: "dcp.gd.Headlights",      label: "LIGHTS",   colorOff: "#222222", colorOn: "#FFD700", icon: "headlights" },
-  pitLimiter:     { property: "dcp.gd.PitLimiter",       label: "PIT LIM",  colorOff: "#222222", colorOn: "#00CC44", icon: "pit" },
-  abs:            { property: "dcp.gd.ABSActive",        label: "ABS",      colorOff: "#222222", colorOn: "#FF3333", icon: "abs" },
-  tc:             { property: "dcp.gd.TcActive",         label: "TC",       colorOff: "#222222", colorOn: "#FF8800", icon: "tc" },
-  engineIgnition: { property: "dcp.gd.EngineIgnitionOn", label: "IGNITION", colorOff: "#222222", colorOn: "#FF3333", icon: "ignition" },
-  flag:           { property: "dcp.gd.Flag_Yellow",      label: "FLAG",     colorOff: "#222222", colorOn: "#FFD700", icon: "flag" },
-  aircon:         { property: "ShakeItWindPlugin.IsEnabled", label: "A/C",  colorOff: "#222222", colorOn: "#00AAFF", icon: "fan" },
+const PRESETS: Record<string, { property: string }> = {
+  headlights:     { property: "dcp.gd.Headlights"          },
+  pitLimiter:     { property: "dcp.gd.PitLimiter"          },
+  abs:            { property: "dcp.gd.ABSActive"           },
+  tc:             { property: "dcp.gd.TcActive"            },
+  engineIgnition: { property: "dcp.gd.EngineIgnitionOn"    },
+  flag:           { property: "dcp.gd.Flag_Yellow"         },
+  aircon:         { property: "ShakeItWindPlugin.IsEnabled" },
 };
 
 @action({ UUID: "com.simhub.buttonbox.telemetrybutton" })
@@ -74,14 +70,6 @@ export class TelemetryButtonAction extends SingletonAction<ButtonSettings> {
       subscribedProperty: property,
     });
 
-    const cfg = resolveConfig(ev.payload.settings);
-    ev.action.setImage(renderButtonSvg({
-      label:    cfg.label,
-      isActive: false,
-      colorOff: cfg.colorOff,
-      colorOn:  cfg.colorOn,
-      icon:     cfg.icon || undefined,
-    })).catch(() => {});
     if (property) this._simhub.subscribe(property);
   }
 
@@ -112,10 +100,15 @@ export class TelemetryButtonAction extends SingletonAction<ButtonSettings> {
     const newProperty = this._pickProperty(ev.payload.settings, this._simhub.getGameName());
     this._swapSubscription(entry, newProperty);
     entry.settings = ev.payload.settings;
-    entry.lastActive = null; // force re-render
+    entry.lastActive = null;
   }
 
-  // When the active game changes, re-evaluate which property each button should watch.
+  // Send the currently-running game to the PI so it can pre-fill the game name field.
+  override onPropertyInspectorDidAppear(_ev: PropertyInspectorDidAppearEvent<ButtonSettings>): void {
+    const game = this._simhub.getGameName();
+    if (game) streamDeck.ui.sendToPropertyInspector({ type: "currentGame", game }).catch(() => {});
+  }
+
   private _onGameChange(game: string): void {
     for (const [, entry] of this._cache) {
       const newProperty = this._pickProperty(entry.settings, game);
@@ -134,7 +127,7 @@ export class TelemetryButtonAction extends SingletonAction<ButtonSettings> {
     const entry = this._cache.get(action.id);
     if (!entry) return;
 
-    const cfg = resolveConfig(entry.settings);
+    const cfg      = resolveConfig(entry.settings);
     const property = entry.subscribedProperty;
     if (!property) return;
 
@@ -145,19 +138,9 @@ export class TelemetryButtonAction extends SingletonAction<ButtonSettings> {
     if (isActive === entry.lastActive) return;
     entry.lastActive = isActive;
 
-    action.setImage(renderButtonSvg({
-      label:    cfg.label,
-      isActive,
-      colorOff: cfg.colorOff,
-      colorOn:  cfg.colorOn,
-      icon:     cfg.icon || undefined,
-    })).catch(() => {});
     action.setState(isActive ? 1 : 0).catch(() => {});
   }
 
-  // Pick the right property name for the current game:
-  // 1. Look for a matching gameMappings entry (case-insensitive)
-  // 2. Fall back to the default property / preset
   private _pickProperty(settings: ButtonSettings, currentGame: string): string {
     const cfg = resolveConfig(settings);
     if (currentGame && cfg.gameMappings.length > 0) {
@@ -179,13 +162,9 @@ export class TelemetryButtonAction extends SingletonAction<ButtonSettings> {
 function resolveConfig(s: ButtonSettings): ResolvedConfig {
   const preset = s.preset ? PRESETS[s.preset] : undefined;
   return {
-    property:     s.property     ?? preset?.property  ?? "",
-    label:        s.label        ?? preset?.label     ?? "BUTTON",
-    colorOff:     s.colorOff     ?? preset?.colorOff  ?? "#222222",
-    colorOn:      s.colorOn      ?? preset?.colorOn   ?? "#1a6fd4",
-    icon:         s.icon         ?? preset?.icon      ?? "",
-    threshold:    s.threshold    ?? "0.5",
-    gameMappings: s.gameMappings ?? [],
+    property:          s.property     ?? preset?.property ?? "",
+    threshold:         s.threshold    ?? "0.5",
+    gameMappings:      s.gameMappings ?? [],
     controlMapperRole: s.controlMapperRole ?? "",
   };
 }
