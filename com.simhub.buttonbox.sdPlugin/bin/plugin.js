@@ -9191,78 +9191,88 @@ typeof SuppressedError === "function" ? SuppressedError : function (error, suppr
 };
 
 // Renders SVG button images for the Stream Deck.
-// The @elgato/streamdeck SDK's setImage() accepts raw SVG strings directly.
+// setImage() accepts SVG strings starting with <svg.
 //
 // Layout (72×72 px):
-//   With icon  → icon fills a 50×50 area (y 4–54), label at y 66
+//   With icon  → icon in upper 50×50 area, label at y 67
 //   No icon    → label centred at y 40
 //
 // Visual design:
-//   OFF — near-black bg, mid-grey icon, grey label, hairline border
-//   ON  — full-colour bg, white icon, white label, thick glowing border + corner accents
-// Icons are full SVG element strings in a 72×72 coordinate space.
-// Rendered inside <g fill="COLOR" stroke="COLOR" stroke-width="0"> so every
-// element inherits the icon colour.  Elements that need a stroke outline
-// explicitly set their own stroke-width; elements that should be hollow set
-// fill="none".
+//   OFF — near-black bg, mid-grey icon/label, hairline border
+//   ON  — full-colour bg, white icon/label, thick glowing border + corner accents
+// Each icon is a string of SVG elements in a 72×72 coordinate space.
+// The literal text "IC" acts as a placeholder that gets replaced with the
+// real icon colour at render time, giving every element an explicit fill
+// or stroke attribute (inheritance from <g> is unreliable in some renderers).
 const ICON_SVG = {
-    // Sun / high-beam: filled circle + 8 rounded rectangular rays
-    headlights: '<circle cx="36" cy="36" r="9"/>' +
-        '<rect x="33" y="5"  width="6" height="13" rx="3"/>' +
-        '<rect x="33" y="5"  width="6" height="13" rx="3" transform="rotate(45 36 36)"/>' +
-        '<rect x="33" y="5"  width="6" height="13" rx="3" transform="rotate(90 36 36)"/>' +
-        '<rect x="33" y="5"  width="6" height="13" rx="3" transform="rotate(135 36 36)"/>' +
-        '<rect x="33" y="5"  width="6" height="13" rx="3" transform="rotate(180 36 36)"/>' +
-        '<rect x="33" y="5"  width="6" height="13" rx="3" transform="rotate(225 36 36)"/>' +
-        '<rect x="33" y="5"  width="6" height="13" rx="3" transform="rotate(270 36 36)"/>' +
-        '<rect x="33" y="5"  width="6" height="13" rx="3" transform="rotate(315 36 36)"/>',
-    // Pit lane / menu: 3 thick rounded bars
-    pit: '<rect x="10" y="17" width="52" height="8" rx="4"/>' +
-        '<rect x="10" y="32" width="52" height="8" rx="4"/>' +
-        '<rect x="10" y="47" width="52" height="8" rx="4"/>',
-    // ABS: target — outer ring + filled centre
-    abs: '<circle cx="36" cy="36" r="22" fill="none" stroke-width="6"/>' +
-        '<circle cx="36" cy="36" r="8"/>',
-    // TC: warning triangle (alert/exclamation)
-    tc: '<polygon points="36,10 64,60 8,60" fill="none" stroke-width="6" stroke-linejoin="round"/>' +
-        '<rect x="33" y="28" width="6" height="14" rx="3"/>' +
-        '<circle cx="36" cy="50" r="4"/>',
-    // Flag: pole + filled pennant
-    flag: '<rect x="14" y="8"  width="6" height="54" rx="3"/>' +
-        '<polygon points="20,8 64,22 20,42"/>',
+    // Sun / high-beam: filled circle + 8 rotated rounded rects as rays
+    headlights: '<circle cx="36" cy="36" r="10" fill="IC"/>' +
+        '<rect x="33" y="5"  width="6" height="13" rx="3" fill="IC"/>' +
+        '<rect x="33" y="5"  width="6" height="13" rx="3" fill="IC" transform="rotate(45 36 36)"/>' +
+        '<rect x="33" y="5"  width="6" height="13" rx="3" fill="IC" transform="rotate(90 36 36)"/>' +
+        '<rect x="33" y="5"  width="6" height="13" rx="3" fill="IC" transform="rotate(135 36 36)"/>' +
+        '<rect x="33" y="5"  width="6" height="13" rx="3" fill="IC" transform="rotate(180 36 36)"/>' +
+        '<rect x="33" y="5"  width="6" height="13" rx="3" fill="IC" transform="rotate(225 36 36)"/>' +
+        '<rect x="33" y="5"  width="6" height="13" rx="3" fill="IC" transform="rotate(270 36 36)"/>' +
+        '<rect x="33" y="5"  width="6" height="13" rx="3" fill="IC" transform="rotate(315 36 36)"/>',
+    // Pit lane: 3 thick rounded bars
+    pit: '<rect x="9"  y="17" width="54" height="8" rx="4" fill="IC"/>' +
+        '<rect x="9"  y="32" width="54" height="8" rx="4" fill="IC"/>' +
+        '<rect x="9"  y="47" width="54" height="8" rx="4" fill="IC"/>',
+    // ABS: outer ring (filled circle + bg hole) + inner dot
+    abs: '<circle cx="36" cy="36" r="24" fill="IC"/>' +
+        '<circle cx="36" cy="36" r="17" fill="BG"/>' +
+        '<circle cx="36" cy="36" r="9"  fill="IC"/>',
+    // TC: warning triangle outline + exclamation mark
+    tc: '<polygon points="36,10 63,60 9,60" fill="IC"/>' +
+        '<polygon points="36,22 54,56 18,56" fill="BG"/>' +
+        '<rect x="33" y="30" width="6" height="13" rx="3" fill="IC"/>' +
+        '<circle cx="36" cy="50" r="4" fill="IC"/>',
+    // Flag: vertical pole + solid pennant
+    flag: '<rect x="14" y="8"  width="6" height="54" rx="3" fill="IC"/>' +
+        '<polygon points="20,8 63,22 20,42" fill="IC"/>',
     // Fuel: canister body + cap + nozzle
-    fuel: '<rect x="22" y="24" width="28" height="34" rx="4"/>' +
-        '<rect x="27" y="14" width="16" height="12" rx="3"/>' +
-        '<rect x="44" y="18" width="12" height="5"  rx="2"/>',
-    // Ignition / power: open circle + vertical bar (classic power symbol)
-    ignition: '<circle cx="36" cy="42" r="18" fill="none" stroke-width="7"/>' +
-        '<rect   x="32" y="14"  width="8"  height="28" rx="4"/>',
-    // Brake disc: two concentric rings + centre dot
-    brake: '<circle cx="36" cy="36" r="24" fill="none" stroke-width="6"/>' +
-        '<circle cx="36" cy="36" r="14" fill="none" stroke-width="5"/>' +
-        '<circle cx="36" cy="36" r="5"/>',
-    // Fan / A-C: centre hub + 4 blades (slightly rotated so it reads as spinning)
-    fan: '<circle cx="36" cy="36" r="7"/>' +
-        '<rect x="33" y="8"  width="6" height="22" rx="3" transform="rotate(20 36 36)"/>' +
-        '<rect x="33" y="8"  width="6" height="22" rx="3" transform="rotate(110 36 36)"/>' +
-        '<rect x="33" y="8"  width="6" height="22" rx="3" transform="rotate(200 36 36)"/>' +
-        '<rect x="33" y="8"  width="6" height="22" rx="3" transform="rotate(290 36 36)"/>',
+    fuel: '<rect x="21" y="24" width="28" height="34" rx="4" fill="IC"/>' +
+        '<rect x="27" y="14" width="16" height="12" rx="3" fill="IC"/>' +
+        '<rect x="43" y="18" width="12" height="5"  rx="2" fill="IC"/>',
+    // Ignition: classic power-button symbol (ring + vertical bar with gap)
+    ignition: '<circle cx="36" cy="42" r="20" fill="IC"/>' +
+        '<circle cx="36" cy="42" r="13" fill="BG"/>' +
+        '<rect   x="32" y="14"  width="8" height="30" rx="4" fill="IC"/>' +
+        '<rect   x="32" y="38"  width="8" height="6"        fill="BG"/>',
+    // Brake: three concentric rings (5 circles alternating icon/bg colour)
+    brake: '<circle cx="36" cy="36" r="24" fill="IC"/>' +
+        '<circle cx="36" cy="36" r="19" fill="BG"/>' +
+        '<circle cx="36" cy="36" r="15" fill="IC"/>' +
+        '<circle cx="36" cy="36" r="10" fill="BG"/>' +
+        '<circle cx="36" cy="36" r="5"  fill="IC"/>',
+    // Fan / A-C: centre hub + 4 blades at 20° offset from cardinal axes
+    fan: '<circle cx="36" cy="36" r="7" fill="IC"/>' +
+        '<rect x="33" y="8" width="6" height="22" rx="3" fill="IC" transform="rotate(20  36 36)"/>' +
+        '<rect x="33" y="8" width="6" height="22" rx="3" fill="IC" transform="rotate(110 36 36)"/>' +
+        '<rect x="33" y="8" width="6" height="22" rx="3" fill="IC" transform="rotate(200 36 36)"/>' +
+        '<rect x="33" y="8" width="6" height="22" rx="3" fill="IC" transform="rotate(290 36 36)"/>',
 };
 function renderButtonSvg(opts) {
     return opts.isActive
         ? renderOn(opts.label, opts.colorOn ?? "#1a6fd4", opts.icon)
         : renderOff(opts.label, opts.colorOff ?? "#1a1a1a", opts.icon);
 }
+function buildIconSvg(icon, iconColor, bgColor) {
+    const def = ICON_SVG[icon];
+    if (!def)
+        return "";
+    return def.replace(/\bIC\b/g, iconColor).replace(/\bBG\b/g, bgColor);
+}
 // OFF — near-black, everything dim
 function renderOff(label, colorOff, icon) {
     const bg = darken(colorOff, 0.15);
     const border = lighten(colorOff, 0.1);
-    const iconColor = "#888888";
+    const iconColor = "#999999";
     const textColor = "#707070";
-    const iconContent = icon ? ICON_SVG[icon] : undefined;
-    const labelY = iconContent ? 67 : 40;
-    const iconSvg = iconContent
-        ? `<g transform="translate(11,4) scale(0.6944)" fill="${iconColor}" stroke="${iconColor}" stroke-width="0">${iconContent}</g>`
+    const labelY = icon && ICON_SVG[icon] ? 67 : 40;
+    const iconSvg = icon && ICON_SVG[icon]
+        ? `<g transform="translate(11,4) scale(0.6944)">${buildIconSvg(icon, iconColor, bg)}</g>`
         : "";
     return [
         `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">`,
@@ -9279,10 +9289,9 @@ function renderOn(label, colorOn, icon) {
     const glow = lighten(colorOn, 0.25);
     const iconColor = "#ffffff";
     const textColor = "#ffffff";
-    const iconContent = icon ? ICON_SVG[icon] : undefined;
-    const labelY = iconContent ? 67 : 40;
-    const iconSvg = iconContent
-        ? `<g transform="translate(11,4) scale(0.6944)" fill="${iconColor}" stroke="${iconColor}" stroke-width="0">${iconContent}</g>`
+    const labelY = icon && ICON_SVG[icon] ? 67 : 40;
+    const iconSvg = icon && ICON_SVG[icon]
+        ? `<g transform="translate(11,4) scale(0.6944)">${buildIconSvg(icon, iconColor, bg)}</g>`
         : "";
     const corners = [
         `<path d="M4 14 L4 4 L14 4"   stroke="${bright}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,

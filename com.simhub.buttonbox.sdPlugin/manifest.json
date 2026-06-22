@@ -25,6 +25,7 @@
         }
       ],
       "SupportedInMultiActions": false,
+      "DisableAutomaticStates": true,
       "Tooltip": "A button that mirrors a SimHub telemetry property — lights up when the property is active.",
       "UUID": "com.simhub.buttonbox.telemetrybutton",
       "PropertyInspectorPath": "inspector/telemetry-button.html"
