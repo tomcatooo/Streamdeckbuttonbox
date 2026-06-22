@@ -2,6 +2,8 @@ import {
   action,
   DidReceiveSettingsEvent,
   KeyAction,
+  KeyDownEvent,
+  KeyUpEvent,
   SingletonAction,
   WillAppearEvent,
   WillDisappearEvent,
@@ -23,10 +25,12 @@ export type ButtonSettings = {
   icon?: string;
   threshold?: string;
   gameMappings?: GameMapping[]; // per-game overrides
+  triggerInput?: string;    // SimHub Control Mapper input name to trigger on press
 };
 
-type ResolvedConfig = Required<Omit<ButtonSettings, "preset" | "gameMappings">> & {
+type ResolvedConfig = Required<Omit<ButtonSettings, "preset" | "gameMappings" | "triggerInput">> & {
   gameMappings: GameMapping[];
+  triggerInput: string;
 };
 
 type ActionCache = {
@@ -80,6 +84,16 @@ export class TelemetryButtonAction extends SingletonAction<ButtonSettings> {
       this._simhub.unsubscribe(entry.subscribedProperty);
     }
     this._cache.delete(ev.action.id);
+  }
+
+  override onKeyDown(ev: KeyDownEvent<ButtonSettings>): void {
+    const input = ev.payload.settings.triggerInput?.trim();
+    if (input) this._simhub.triggerInputPressed(input);
+  }
+
+  override onKeyUp(ev: KeyUpEvent<ButtonSettings>): void {
+    const input = ev.payload.settings.triggerInput?.trim();
+    if (input) this._simhub.triggerInputReleased(input);
   }
 
   override onDidReceiveSettings(ev: DidReceiveSettingsEvent<ButtonSettings>): void {
@@ -158,12 +172,13 @@ export class TelemetryButtonAction extends SingletonAction<ButtonSettings> {
 function resolveConfig(s: ButtonSettings): ResolvedConfig {
   const preset = s.preset ? PRESETS[s.preset] : undefined;
   return {
-    property:     s.property  ?? preset?.property  ?? "",
-    label:        s.label     ?? preset?.label     ?? "BUTTON",
-    colorOff:     s.colorOff  ?? preset?.colorOff  ?? "#222222",
-    colorOn:      s.colorOn   ?? preset?.colorOn   ?? "#1a6fd4",
-    icon:         s.icon      ?? preset?.icon      ?? "",
-    threshold:    s.threshold ?? "0.5",
+    property:     s.property     ?? preset?.property  ?? "",
+    label:        s.label        ?? preset?.label     ?? "BUTTON",
+    colorOff:     s.colorOff     ?? preset?.colorOff  ?? "#222222",
+    colorOn:      s.colorOn      ?? preset?.colorOn   ?? "#1a6fd4",
+    icon:         s.icon         ?? preset?.icon      ?? "",
+    threshold:    s.threshold    ?? "0.5",
     gameMappings: s.gameMappings ?? [],
+    triggerInput: s.triggerInput ?? "",
   };
 }

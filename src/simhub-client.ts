@@ -153,6 +153,18 @@ export class SimHubClient extends EventEmitter {
     }
   }
 
+  triggerInput(name: string): void {
+    this._send(`trigger-input ${name}`);
+  }
+
+  triggerInputPressed(name: string): void {
+    this._send(`trigger-input-pressed ${name}`);
+  }
+
+  triggerInputReleased(name: string): void {
+    this._send(`trigger-input-released ${name}`);
+  }
+
   private _send(msg: string): void {
     this._socket?.write(msg + "\n");
   }

@@ -234,6 +234,17 @@
     <span class="color-hint">active</span>
   </div>
 
+  <hr>
+  <div class="section">Control Mapper</div>
+  <div class="row">
+    <label>Input name</label>
+    <input type="text" id="triggerInput" placeholder="e.g. Headlights">
+  </div>
+  <div class="hint">
+    Optional. SimHub Control Mapper input to trigger when this button is pressed.<br>
+    The name must match exactly what you configured in SimHub's Control Mapper.
+  </div>
+
   <div id="status"></div>
 
 <script>
@@ -249,7 +260,7 @@
     aircon:         { property: 'ShakeItWindPlugin.IsEnabled', label: 'A/C',  colorOff: '#222222', colorOn: '#00AAFF', icon: 'fan' },
   };
 
-  const SCALAR_FIELDS = ['property', 'label', 'colorOff', 'colorOn', 'icon', 'threshold'];
+  const SCALAR_FIELDS = ['property', 'label', 'colorOff', 'colorOn', 'icon', 'threshold', 'triggerInput'];
 
   let settings = {};
   let piUUID   = null;
