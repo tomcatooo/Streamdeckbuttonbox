@@ -74,6 +74,68 @@
       margin-bottom: 6px;
     }
 
+    /* Game mappings table */
+    #mappings-list { margin-bottom: 6px; }
+
+    .mapping-row {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 5px;
+      align-items: center;
+    }
+
+    .mapping-row input {
+      flex: 1;
+      font-size: 11px;
+      padding: 3px 6px;
+    }
+
+    .mapping-row input::placeholder { color: #444; }
+
+    .btn-remove {
+      flex: 0 0 20px;
+      width: 20px;
+      height: 20px;
+      background: #3a1a1a;
+      border: 1px solid #552222;
+      border-radius: 3px;
+      color: #cc4444;
+      font-size: 14px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-remove:hover { background: #4a2020; }
+
+    .btn-add {
+      font-size: 11px;
+      background: #1a2a1a;
+      border: 1px solid #2a4a2a;
+      border-radius: 4px;
+      color: #66aa66;
+      padding: 4px 10px;
+      cursor: pointer;
+      margin-left: 94px;
+    }
+
+    .btn-add:hover { background: #223322; }
+
+    .mapping-labels {
+      display: flex;
+      gap: 5px;
+      padding-left: 94px;
+      margin-bottom: 3px;
+    }
+
+    .mapping-labels span {
+      flex: 1;
+      font-size: 10px;
+      color: #555;
+    }
+
     #status {
       font-size: 11px;
       padding: 4px 8px;
@@ -88,7 +150,6 @@
 <body>
 
   <div class="section">Quick Setup</div>
-
   <div class="row">
     <label>Preset</label>
     <select id="preset">
@@ -103,19 +164,38 @@
   </div>
 
   <hr>
-  <div class="section">SimHub Property</div>
+  <div class="section">Default SimHub Property</div>
 
   <div class="row">
     <label>Property</label>
-    <input type="text" id="property" placeholder="e.g. Headlights">
+    <input type="text" id="property" placeholder="e.g. dcp.gd.Headlights">
   </div>
-  <div class="hint">Exact property name from SimHub telemetry.<br>Check SimHub → Bindings for available names.</div>
+  <div class="hint">
+    Used when no per-game override matches.<br>
+    Connect to port 18082 and type <code>help</code> to browse properties.
+  </div>
 
   <div class="row">
     <label>Threshold</label>
     <input type="number" id="threshold" placeholder="0.5" step="0.1" min="0">
   </div>
-  <div class="hint">Button activates when value &gt; threshold.</div>
+  <div class="hint">Button activates when value &gt; threshold (default 0.5).</div>
+
+  <hr>
+  <div class="section">Per-Game Overrides</div>
+  <div class="hint" style="margin-bottom:6px">
+    Optional. SimHub's <code>dcp.gd.*</code> properties already work across most games.<br>
+    Add overrides only when a game uses a different property path<br>
+    (e.g. <code>acc.Physics.headlightsOn</code> for raw ACC data).
+  </div>
+
+  <div class="mapping-labels">
+    <span>Game name (SimHub reports)</span>
+    <span>Property for that game</span>
+    <span style="flex:0 0 20px"></span>
+  </div>
+  <div id="mappings-list"></div>
+  <button class="btn-add" id="btn-add-mapping">+ Add game override</button>
 
   <hr>
   <div class="section">Appearance</div>
@@ -158,31 +238,30 @@
   'use strict';
 
   const PRESETS = {
-    headlights:     { property: 'Headlights',      label: 'LIGHTS',   colorOff: '#222222', colorOn: '#FFD700', icon: 'headlights' },
-    pitLimiter:     { property: 'PitLimiter',       label: 'PIT LIM',  colorOff: '#222222', colorOn: '#00CC44', icon: 'pit' },
-    abs:            { property: 'ABSActive',        label: 'ABS',      colorOff: '#222222', colorOn: '#FF3333', icon: 'abs' },
-    tc:             { property: 'TCActive',         label: 'TC',       colorOff: '#222222', colorOn: '#FF8800', icon: 'tc' },
-    engineIgnition: { property: 'EngineIgnitionOn', label: 'IGNITION', colorOff: '#222222', colorOn: '#FF3333', icon: 'ignition' },
-    flag:           { property: 'Flag_Yellow',      label: 'FLAG',     colorOff: '#222222', colorOn: '#FFD700', icon: 'flag' },
+    headlights:     { property: 'dcp.gd.Headlights',      label: 'LIGHTS',   colorOff: '#222222', colorOn: '#FFD700', icon: 'headlights' },
+    pitLimiter:     { property: 'dcp.gd.PitLimiter',       label: 'PIT LIM',  colorOff: '#222222', colorOn: '#00CC44', icon: 'pit' },
+    abs:            { property: 'dcp.gd.ABSActive',        label: 'ABS',      colorOff: '#222222', colorOn: '#FF3333', icon: 'abs' },
+    tc:             { property: 'dcp.gd.TcActive',         label: 'TC',       colorOff: '#222222', colorOn: '#FF8800', icon: 'tc' },
+    engineIgnition: { property: 'dcp.gd.EngineIgnitionOn', label: 'IGNITION', colorOff: '#222222', colorOn: '#FF3333', icon: 'ignition' },
+    flag:           { property: 'dcp.gd.Flag_Yellow',      label: 'FLAG',     colorOff: '#222222', colorOn: '#FFD700', icon: 'flag' },
   };
 
-  const FIELDS = ['property', 'label', 'colorOff', 'colorOn', 'icon', 'threshold'];
+  const SCALAR_FIELDS = ['property', 'label', 'colorOff', 'colorOn', 'icon', 'threshold'];
 
   let settings = {};
   let piUUID   = null;
   let ws       = null;
 
+  // ── Stream Deck PI bootstrap ────────────────────────────────────────────────
   function connectElgatoStreamDeckSocket(port, uuid, registerEvent, _info, actionInfoStr) {
     piUUID = uuid;
     try { settings = JSON.parse(actionInfoStr)?.payload?.settings ?? {}; } catch { /**/ }
 
     ws = new WebSocket('ws://127.0.0.1:' + port);
-
     ws.onopen = () => {
       ws.send(JSON.stringify({ event: registerEvent, uuid }));
       ws.send(JSON.stringify({ event: 'getSettings', context: uuid }));
     };
-
     ws.onmessage = (evt) => {
       let msg;
       try { msg = JSON.parse(evt.data); } catch { return; }
@@ -196,13 +275,70 @@
     bindEvents();
   }
 
+  // ── Populate form from settings ─────────────────────────────────────────────
   function populate() {
     $('preset').value = settings.preset ?? '';
-    for (const f of FIELDS) {
-      if (settings[f] != null) $( f).value = settings[f];
+    for (const f of SCALAR_FIELDS) {
+      if (settings[f] != null) $(f).value = settings[f];
+    }
+    renderMappings(settings.gameMappings ?? []);
+  }
+
+  // ── Game mappings UI ────────────────────────────────────────────────────────
+  function renderMappings(mappings) {
+    const list = $('mappings-list');
+    list.innerHTML = '';
+    for (let i = 0; i < mappings.length; i++) {
+      list.appendChild(makeMappingRow(mappings[i], i));
     }
   }
 
+  function makeMappingRow(mapping, idx) {
+    const row = document.createElement('div');
+    row.className = 'mapping-row';
+    row.dataset.idx = idx;
+
+    const gameInput = document.createElement('input');
+    gameInput.type = 'text';
+    gameInput.placeholder = 'e.g. assettocorsa';
+    gameInput.value = mapping.game ?? '';
+    gameInput.addEventListener('input', onMappingChange);
+
+    const propInput = document.createElement('input');
+    propInput.type = 'text';
+    propInput.placeholder = 'e.g. acc.Physics.headlightsOn';
+    propInput.value = mapping.property ?? '';
+    propInput.addEventListener('input', onMappingChange);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'btn-remove';
+    removeBtn.textContent = '×';
+    removeBtn.addEventListener('click', () => {
+      row.remove();
+      save();
+    });
+
+    row.appendChild(gameInput);
+    row.appendChild(propInput);
+    row.appendChild(removeBtn);
+    return row;
+  }
+
+  function onMappingChange() { save(); }
+
+  function readMappings() {
+    const rows = $('mappings-list').querySelectorAll('.mapping-row');
+    const result = [];
+    for (const row of rows) {
+      const inputs = row.querySelectorAll('input');
+      const game     = inputs[0].value.trim();
+      const property = inputs[1].value.trim();
+      if (game || property) result.push({ game, property });
+    }
+    return result;
+  }
+
+  // ── Event binding ───────────────────────────────────────────────────────────
   function bindEvents() {
     $('preset').addEventListener('change', () => {
       const p = PRESETS[$('preset').value];
@@ -215,35 +351,37 @@
       save();
     });
 
-    for (const f of FIELDS) {
+    for (const f of SCALAR_FIELDS) {
       const el = $(f);
       if (el) { el.addEventListener('input', save); el.addEventListener('change', save); }
     }
+
+    $('btn-add-mapping').addEventListener('click', () => {
+      const list = $('mappings-list');
+      const idx  = list.children.length;
+      list.appendChild(makeMappingRow({ game: '', property: '' }, idx));
+      list.lastElementChild.querySelector('input').focus();
+    });
   }
 
+  // ── Save ────────────────────────────────────────────────────────────────────
   function save() {
     const next = { preset: $('preset').value };
-    for (const f of FIELDS) { const el = $(f); if (el) next[f] = el.value; }
+    for (const f of SCALAR_FIELDS) { const el = $(f); if (el) next[f] = el.value; }
+    next.gameMappings = readMappings();
     settings = next;
 
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ event: 'setSettings', context: piUUID, payload: settings }));
-      ws.send(JSON.stringify({
-        event: 'sendToPlugin',
-        context: piUUID,
-        action: 'com.simhub.buttonbox.telemetrybutton',
-        payload: { type: 'settingsChanged', settings },
-      }));
     }
 
     const missing = !next.property && !next.preset;
-    const el = document.getElementById('status');
+    const el = $('status');
     el.className = missing ? 'warn' : 'ok';
     el.textContent = missing
       ? 'Choose a preset or enter a SimHub property name.'
-      : next.preset
-        ? `Using preset: ${next.preset}`
-        : `Watching: ${next.property}`;
+      : (next.preset ? `Preset: ${next.preset}` : `Watching: ${next.property}`)
+        + (next.gameMappings.length ? ` (+${next.gameMappings.length} game overrides)` : '');
   }
 
   const $ = (id) => document.getElementById(id);

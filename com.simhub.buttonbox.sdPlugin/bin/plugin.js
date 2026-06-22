@@ -1,15 +1,15 @@
 import require$$0$3, { EventEmitter as EventEmitter$1 } from 'events';
 import require$$1$1 from 'https';
-import * as require$$2 from 'http';
-import require$$2__default from 'http';
-import require$$3 from 'net';
+import require$$2$1 from 'http';
+import * as require$$3 from 'net';
+import require$$3__default from 'net';
 import require$$4 from 'tls';
 import require$$1 from 'crypto';
 import require$$0$2 from 'stream';
 import require$$7 from 'url';
 import require$$0 from 'zlib';
 import require$$0$1 from 'buffer';
-import require$$2$1 from 'util';
+import require$$2 from 'util';
 import fs, { existsSync, readFileSync } from 'node:fs';
 import path, { join } from 'node:path';
 import { cwd } from 'node:process';
@@ -3424,7 +3424,7 @@ function requireSender () {
 	const { randomFillSync } = require$$1;
 	const {
 	  types: { isUint8Array }
-	} = require$$2$1;
+	} = require$$2;
 
 	const PerMessageDeflate = requirePermessageDeflate();
 	const { EMPTY_BUFFER, kWebSocket, NOOP } = requireConstants();
@@ -4548,8 +4548,8 @@ function requireWebsocket () {
 
 	const EventEmitter = require$$0$3;
 	const https = require$$1$1;
-	const http = require$$2__default;
-	const net = require$$3;
+	const http = require$$2$1;
+	const net = require$$3__default;
 	const tls = require$$4;
 	const { randomBytes, createHash } = require$$1;
 	const { Duplex, Readable } = require$$0$2;
@@ -6217,7 +6217,7 @@ function requireWebsocketServer () {
 	hasRequiredWebsocketServer = 1;
 
 	const EventEmitter = require$$0$3;
-	const http = require$$2__default;
+	const http = require$$2$1;
 	const { Duplex } = require$$0$2;
 	const { createHash } = require$$1;
 
@@ -9190,8 +9190,12 @@ typeof SuppressedError === "function" ? SuppressedError : function (error, suppr
     return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
 };
 
-// Generates SVG strings for Stream Deck button images.
+// Renders SVG button images for the Stream Deck.
 // The @elgato/streamdeck SDK's setImage() accepts raw SVG strings directly.
+//
+// Visual design:
+//   OFF — near-black bg, dim icon, dark grey label, hairline border
+//   ON  — full-color bg, bright icon, white label, thick glowing border, corner accents
 // 72×72-viewport icon path data
 const ICON_PATHS = {
     headlights: "M36 8C20.5 8 8 20.5 8 36s12.5 28 28 28 28-12.5 28-28S51.5 8 36 8zm0 8c11 0 20 9 20 20S47 56 36 56 16 47 16 36s9-20 20-20zm0 4c-8.8 0-16 7.2-16 16s7.2 16 16 16 16-7.2 16-16-7.2-16-16-16zm-2 6h4v8h-4v-8zm-8.5 3.5 2.8 2.8-5.7 5.7-2.8-2.8 5.7-5.7zm21 0 5.7 5.7-2.8 2.8-5.7-5.7 2.8-2.8zM20 34h8v4h-8v-4zm24 0h8v4h-8v-4zm-13.7 9.2 2.8-2.8 5.7 5.7-2.8 2.8-5.7-5.7zm13.4 0 5.7 5.7-2.8 2.8-5.7-5.7 2.8-2.8zM34 46h4v8h-4v-8z",
@@ -9204,40 +9208,94 @@ const ICON_PATHS = {
     brake: "M36 14C23.8 14 14 23.8 14 36s9.8 22 22 22 22-9.8 22-22-9.8-22-22-22zm0 6c8.8 0 16 7.2 16 16s-7.2 16-16 16-16-7.2-16-16 7.2-16 16-16zm0 4c-6.6 0-12 5.4-12 12s5.4 12 12 12 12-5.4 12-12-5.4-12-12-12z",
 };
 function renderButtonSvg(opts) {
-    const { label, isActive, colorOff = "#1a1a1a", colorOn = "#1a6fd4", icon, } = opts;
-    const bg = isActive ? colorOn : colorOff;
-    const textColor = isActive ? "#ffffff" : "#888888";
-    const border = isActive ? adjustColor(bg, 40) : "#3a3a3a";
-    const iconColor = isActive ? "#ffffff" : "#555555";
+    const { label, isActive, colorOff = "#1a1a1a", colorOn = "#1a6fd4", icon } = opts;
+    return isActive
+        ? renderOn(label, colorOn, icon)
+        : renderOff(label, colorOff, icon);
+}
+// OFF — nearly black, everything dimmed
+function renderOff(label, colorOff, icon) {
+    const bg = darken(colorOff, 0.15); // very dark version of the off colour
+    const border = lighten(colorOff, 0.1);
+    const iconColor = "#444444";
+    const textColor = "#555555";
     const iconPath = icon ? ICON_PATHS[icon] : undefined;
-    const labelY = iconPath ? 62 : 42;
+    const labelY = iconPath ? 63 : 43;
     const iconSvg = iconPath
         ? `<g transform="translate(18,6) scale(0.5)" fill="${iconColor}"><path d="${iconPath}"/></g>`
         : "";
-    const glowDefs = isActive
-        ? `<defs><filter id="g"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>`
-        : "";
-    const glowAttr = isActive ? ` filter="url(#g)"` : "";
-    const dot = isActive
-        ? `<circle cx="36" cy="68" r="2.5" fill="${border}"/>`
-        : "";
     return [
         `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">`,
-        glowDefs,
-        `<rect x="1" y="1" width="70" height="70" rx="8" fill="${bg}" stroke="${border}" stroke-width="1.5"${glowAttr}/>`,
+        `<rect x="0" y="0" width="72" height="72" rx="8" fill="${bg}" stroke="${border}" stroke-width="1"/>`,
         iconSvg,
         `<text x="36" y="${labelY}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="${textColor}" letter-spacing="0.5">${escXml(label)}</text>`,
-        dot,
         `</svg>`,
     ].join("");
 }
-function adjustColor(hex, amount) {
-    const n = parseInt(hex.replace("#", ""), 16);
-    const clamp = (v) => Math.max(0, Math.min(255, v));
-    const r = clamp(((n >> 16) & 0xff) + amount);
-    const g = clamp(((n >> 8) & 0xff) + amount);
-    const b = clamp((n & 0xff) + amount);
+// ON — full colour, thick glowing border, corner accents, bright icon
+function renderOn(label, colorOn, icon) {
+    const bg = colorOn;
+    const bright = lighten(colorOn, 0.4); // for border and accents
+    const glow = lighten(colorOn, 0.25); // for outer glow
+    const iconColor = "#ffffff";
+    const textColor = "#ffffff";
+    const iconPath = icon ? ICON_PATHS[icon] : undefined;
+    const labelY = iconPath ? 63 : 43;
+    const iconSvg = iconPath
+        ? `<g transform="translate(18,6) scale(0.5)" fill="${iconColor}"><path d="${iconPath}"/></g>`
+        : "";
+    // Corner accent lines (L-shaped corners in bright colour)
+    const corners = [
+        // top-left
+        `<path d="M4 14 L4 4 L14 4" stroke="${bright}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
+        // top-right
+        `<path d="M58 4 L68 4 L68 14" stroke="${bright}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
+        // bottom-left
+        `<path d="M4 58 L4 68 L14 68" stroke="${bright}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
+        // bottom-right
+        `<path d="M58 68 L68 68 L68 58" stroke="${bright}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
+    ].join("");
+    return [
+        `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">`,
+        `<defs>`,
+        `  <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">`,
+        `    <feGaussianBlur stdDeviation="4" result="b"/>`,
+        `    <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>`,
+        `  </filter>`,
+        `</defs>`,
+        // Outer glow layer
+        `<rect x="1" y="1" width="70" height="70" rx="8" fill="none" stroke="${glow}" stroke-width="6" opacity="0.4" filter="url(#glow)"/>`,
+        // Main background
+        `<rect x="2" y="2" width="68" height="68" rx="7" fill="${bg}" stroke="${bright}" stroke-width="2"/>`,
+        // Icon
+        iconSvg,
+        // Label
+        `<text x="36" y="${labelY}" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="bold" fill="${textColor}" letter-spacing="0.5">${escXml(label)}</text>`,
+        // Corner accents drawn on top
+        corners,
+        `</svg>`,
+    ].join("");
+}
+// Lighten a hex colour by mixing towards white by `t` (0–1)
+function lighten(hex, t) {
+    return blend(hex, "#ffffff", t);
+}
+// Darken a hex colour by mixing towards black by `t` (0–1)
+function darken(hex, t) {
+    return blend(hex, "#000000", t);
+}
+function blend(hex, target, t) {
+    const [r1, g1, b1] = parseHex(hex);
+    const [r2, g2, b2] = parseHex(target);
+    const clamp = (v) => Math.round(Math.max(0, Math.min(255, v)));
+    const r = clamp(r1 + (r2 - r1) * t);
+    const g = clamp(g1 + (g2 - g1) * t);
+    const b = clamp(b1 + (b2 - b1) * t);
     return `#${[r, g, b].map((c) => c.toString(16).padStart(2, "0")).join("")}`;
+}
+function parseHex(hex) {
+    const n = parseInt(hex.replace("#", ""), 16);
+    return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 function escXml(s) {
     return s
@@ -9247,13 +9305,16 @@ function escXml(s) {
         .replace(/"/g, "&quot;");
 }
 
+// Built-in presets use dcp.gd.* (DataCorePlugin.GameData.*) typed properties
+// for the best performance. Untyped access works too — just omit the prefix.
+// Use `help` in a TCP connection to port 18082 to browse all available properties.
 const PRESETS = {
-    headlights: { property: "Headlights", label: "LIGHTS", colorOff: "#222222", colorOn: "#FFD700", icon: "headlights" },
-    pitLimiter: { property: "PitLimiter", label: "PIT LIM", colorOff: "#222222", colorOn: "#00CC44", icon: "pit" },
-    abs: { property: "ABSActive", label: "ABS", colorOff: "#222222", colorOn: "#FF3333", icon: "abs" },
-    tc: { property: "TCActive", label: "TC", colorOff: "#222222", colorOn: "#FF8800", icon: "tc" },
-    engineIgnition: { property: "EngineIgnitionOn", label: "IGNITION", colorOff: "#222222", colorOn: "#FF3333", icon: "ignition" },
-    flag: { property: "Flag_Yellow", label: "FLAG", colorOff: "#222222", colorOn: "#FFD700", icon: "flag" },
+    headlights: { property: "dcp.gd.Headlights", label: "LIGHTS", colorOff: "#222222", colorOn: "#FFD700", icon: "headlights" },
+    pitLimiter: { property: "dcp.gd.PitLimiter", label: "PIT LIM", colorOff: "#222222", colorOn: "#00CC44", icon: "pit" },
+    abs: { property: "dcp.gd.ABSActive", label: "ABS", colorOff: "#222222", colorOn: "#FF3333", icon: "abs" },
+    tc: { property: "dcp.gd.TcActive", label: "TC", colorOff: "#222222", colorOn: "#FF8800", icon: "tc" },
+    engineIgnition: { property: "dcp.gd.EngineIgnitionOn", label: "IGNITION", colorOff: "#222222", colorOn: "#FF3333", icon: "ignition" },
+    flag: { property: "dcp.gd.Flag_Yellow", label: "FLAG", colorOff: "#222222", colorOn: "#FFD700", icon: "flag" },
 };
 let TelemetryButtonAction = (() => {
     let _classDecorators = [action({ UUID: "com.simhub.buttonbox.telemetrybutton" })];
@@ -9270,32 +9331,51 @@ let TelemetryButtonAction = (() => {
             if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
             __runInitializers(_classThis, _classExtraInitializers);
         }
-        // Per-instance cache keyed by action.id: avoids calling getSettings() in the hot path.
+        _simhub;
         _cache = new Map();
         constructor(simhub) {
             super();
+            this._simhub = simhub;
             simhub.on("update", (data) => this._onSimHubUpdate(data));
+            simhub.on("gameChange", (game) => this._onGameChange(game));
         }
         onWillAppear(ev) {
             if (!ev.action.isKey())
                 return;
+            const property = this._pickProperty(ev.payload.settings, this._simhub.getGameName());
             this._cache.set(ev.action.id, {
                 settings: ev.payload.settings,
                 lastActive: null,
+                subscribedProperty: property,
             });
-            // Show a placeholder immediately so the button isn't blank on first load.
             ev.action.setImage(renderButtonSvg({ label: "---", isActive: false })).catch(() => { });
+            if (property)
+                this._simhub.subscribe(property);
         }
         onWillDisappear(ev) {
+            const entry = this._cache.get(ev.action.id);
+            if (entry?.subscribedProperty) {
+                this._simhub.unsubscribe(entry.subscribedProperty);
+            }
             this._cache.delete(ev.action.id);
         }
         onDidReceiveSettings(ev) {
             if (!ev.action.isKey())
                 return;
             const entry = this._cache.get(ev.action.id);
-            if (entry) {
-                entry.settings = ev.payload.settings;
-                entry.lastActive = null; // force re-render with new settings
+            if (!entry)
+                return;
+            const newProperty = this._pickProperty(ev.payload.settings, this._simhub.getGameName());
+            this._swapSubscription(entry, newProperty);
+            entry.settings = ev.payload.settings;
+            entry.lastActive = null; // force re-render
+        }
+        // When the active game changes, re-evaluate which property each button should watch.
+        _onGameChange(game) {
+            for (const [, entry] of this._cache) {
+                const newProperty = this._pickProperty(entry.settings, game);
+                this._swapSubscription(entry, newProperty);
+                entry.lastActive = null;
             }
         }
         _onSimHubUpdate(data) {
@@ -9309,25 +9389,46 @@ let TelemetryButtonAction = (() => {
             if (!entry)
                 return;
             const cfg = resolveConfig(entry.settings);
-            if (!cfg.property)
+            const property = entry.subscribedProperty;
+            if (!property)
                 return;
-            const raw = data[cfg.property];
+            const raw = data[property];
             if (raw === undefined)
                 return;
             const isActive = Number(raw) > Number(cfg.threshold);
             if (isActive === entry.lastActive)
-                return; // nothing changed
+                return;
             entry.lastActive = isActive;
-            action
-                .setImage(renderButtonSvg({
+            action.setImage(renderButtonSvg({
                 label: cfg.label,
                 isActive,
                 colorOff: cfg.colorOff,
                 colorOn: cfg.colorOn,
                 icon: cfg.icon || undefined,
-            }))
-                .catch(() => { });
+            })).catch(() => { });
             action.setState(isActive ? 1 : 0).catch(() => { });
+        }
+        // Pick the right property name for the current game:
+        // 1. Look for a matching gameMappings entry (case-insensitive)
+        // 2. Fall back to the default property / preset
+        _pickProperty(settings, currentGame) {
+            const cfg = resolveConfig(settings);
+            if (currentGame && cfg.gameMappings.length > 0) {
+                const lower = currentGame.toLowerCase();
+                const match = cfg.gameMappings.find((m) => m.game.toLowerCase() === lower);
+                if (match?.property)
+                    return match.property;
+            }
+            return cfg.property;
+        }
+        _swapSubscription(entry, newProperty) {
+            if (entry.subscribedProperty === newProperty)
+                return;
+            if (entry.subscribedProperty)
+                this._simhub.unsubscribe(entry.subscribedProperty);
+            if (newProperty)
+                this._simhub.subscribe(newProperty);
+            entry.subscribedProperty = newProperty;
         }
     });
     return _classThis;
@@ -9341,149 +9442,155 @@ function resolveConfig(s) {
         colorOn: s.colorOn ?? preset?.colorOn ?? "#1a6fd4",
         icon: s.icon ?? preset?.icon ?? "",
         threshold: s.threshold ?? "0.5",
+        gameMappings: s.gameMappings ?? [],
     };
 }
 
 const SIMHUB_HOST = "127.0.0.1";
-const SIMHUB_PORT = 8888;
-const POLL_MS = 100;
-const WS_RECONNECT_MS = 5000;
-const WS_CONNECT_TIMEOUT_MS = 3000;
-// Connects to SimHub and emits "update" events with the latest telemetry.
-// Tries a WebSocket connection first (SimHub Dashboard Server on port 8888),
-// falls back to HTTP polling if the WS isn't reachable within 3 seconds.
+const PROP_SERVER_PORT = 18082;
+const RECONNECT_MS = 5000;
+// Internal property used to track the active game — never exposed to callers.
+const GAME_NAME_PROP = "dcp.GameName";
+// Implements the SimHub Property Server TCP protocol (port 18082).
+//
+// Protocol summary:
+//   → connect
+//   ← "SimHub Property Server\n"
+//   → "subscribe <propertyName>\n"
+//   ← "Property <name> <type> <value>\n"  (on connect + on every change, ≤10 Hz)
+//   → "unsubscribe <propertyName>\n"
+//
+// Reference-counted subscriptions let multiple buttons share the same
+// property without double-subscribing or premature unsubscribes.
 class SimHubClient extends EventEmitter$1 {
-    _ws = null;
-    _pollTimer = null;
-    _data = {};
-    _wsConnected = false;
+    _socket = null;
+    _buf = "";
+    _connected = false;
     _stopped = false;
+    _data = {};
+    _gameName = "";
+    // property → number of callers currently watching it
+    _refCounts = new Map();
     start() {
-        this._tryWebSocket();
+        this._connect();
     }
     stop() {
         this._stopped = true;
-        this._ws?.terminate();
-        this._ws = null;
-        if (this._pollTimer !== null) {
-            clearInterval(this._pollTimer);
-            this._pollTimer = null;
-        }
+        this._socket?.destroy();
+        this._socket = null;
     }
     getData() {
         return this._data;
     }
-    _tryWebSocket() {
+    getGameName() {
+        return this._gameName;
+    }
+    subscribe(property) {
+        if (!property)
+            return;
+        const prev = this._refCounts.get(property) ?? 0;
+        this._refCounts.set(property, prev + 1);
+        if (prev === 0 && this._connected) {
+            this._send(`subscribe ${property}`);
+        }
+    }
+    unsubscribe(property) {
+        if (!property)
+            return;
+        const prev = this._refCounts.get(property) ?? 0;
+        if (prev <= 1) {
+            this._refCounts.delete(property);
+            if (this._connected)
+                this._send(`unsubscribe ${property}`);
+        }
+        else {
+            this._refCounts.set(property, prev - 1);
+        }
+    }
+    _connect() {
         if (this._stopped)
             return;
-        let ws;
-        try {
-            ws = new WebSocket(`ws://${SIMHUB_HOST}:${SIMHUB_PORT}/`);
-        }
-        catch {
-            this._startPolling();
-            return;
-        }
-        const timeout = setTimeout(() => {
-            if (!this._wsConnected) {
-                ws.terminate();
-                this._startPolling();
+        const socket = require$$3.createConnection(PROP_SERVER_PORT, SIMHUB_HOST);
+        socket.setEncoding("utf8");
+        socket.setTimeout(3000);
+        this._buf = "";
+        socket.on("connect", () => {
+            socket.setTimeout(0);
+            this._socket = socket;
+        });
+        socket.on("data", (chunk) => {
+            this._buf += chunk;
+            const lines = this._buf.split("\n");
+            this._buf = lines.pop() ?? "";
+            for (const line of lines) {
+                this._handleLine(line.trim());
             }
-        }, WS_CONNECT_TIMEOUT_MS);
-        ws.on("open", () => {
-            clearTimeout(timeout);
-            this._wsConnected = true;
-            this._ws = ws;
         });
-        ws.on("message", (raw) => {
-            this._parseMessage(raw.toString());
-        });
-        ws.on("error", () => {
-            clearTimeout(timeout);
-            if (!this._wsConnected)
-                this._startPolling();
-        });
-        ws.on("close", () => {
-            clearTimeout(timeout);
-            this._wsConnected = false;
-            this._ws = null;
+        socket.on("timeout", () => socket.destroy());
+        socket.on("error", () => { });
+        socket.on("close", () => {
+            this._socket = null;
+            this._connected = false;
             if (!this._stopped) {
-                setTimeout(() => this._tryWebSocket(), WS_RECONNECT_MS);
+                setTimeout(() => this._connect(), RECONNECT_MS);
             }
         });
     }
-    _startPolling() {
-        if (this._stopped || this._pollTimer !== null)
+    _handleLine(line) {
+        if (!line)
             return;
-        this._pollTimer = setInterval(() => this._poll(), POLL_MS);
-    }
-    _poll() {
-        const options = {
-            hostname: SIMHUB_HOST,
-            port: SIMHUB_PORT,
-            path: "/api/v5/status",
-            method: "GET",
-            timeout: 500,
-        };
-        const req = require$$2.request(options, (res) => {
-            let body = "";
-            res.on("data", (c) => {
-                body += c;
-            });
-            res.on("end", () => {
-                try {
-                    this._parseMessage(body);
-                }
-                catch {
-                    /* ignore malformed responses */
-                }
-            });
-        });
-        req.on("error", () => {
-            /* SimHub not running — silently skip */
-        });
-        req.on("timeout", () => {
-            try {
-                req.destroy();
+        // Greeting — subscribe to game name + everything callers registered before connect
+        if (line === "SimHub Property Server") {
+            this._connected = true;
+            this._send(`subscribe ${GAME_NAME_PROP}`);
+            for (const property of this._refCounts.keys()) {
+                this._send(`subscribe ${property}`);
             }
-            catch {
-                /* ignore */
-            }
-        });
-        req.end();
-    }
-    // Handles both raw JSON and SimHub's "update;{json}" WS wire format.
-    // Also flattens known wrapper keys (NewData, data) one level deep.
-    _parseMessage(raw) {
-        let parsed;
-        try {
-            const jsonStr = raw.startsWith("update;") ? raw.slice(7) : raw;
-            parsed = JSON.parse(jsonStr);
-        }
-        catch {
             return;
         }
-        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
-            return;
-        const flat = {};
-        const merge = (obj) => {
-            for (const [k, v] of Object.entries(obj)) {
-                if (v !== null && typeof v === "object" && !Array.isArray(v)) {
-                    if (k === "NewData" || k === "data") {
-                        merge(v);
-                    }
-                    else {
-                        flat[k] = v;
-                    }
+        // "Property <name> <type> <value>"
+        if (line.startsWith("Property ")) {
+            const rest = line.slice(9);
+            const s1 = rest.indexOf(" ");
+            if (s1 === -1)
+                return;
+            const name = rest.slice(0, s1);
+            const tail = rest.slice(s1 + 1);
+            const s2 = tail.indexOf(" ");
+            if (s2 === -1)
+                return;
+            const type = tail.slice(0, s2);
+            const rawValue = tail.slice(s2 + 1);
+            const value = parseValue(rawValue, type);
+            if (value === undefined)
+                return;
+            // Track game name changes internally and emit gameChange
+            if (name === GAME_NAME_PROP) {
+                const newGame = String(value);
+                if (newGame !== this._gameName) {
+                    this._gameName = newGame;
+                    this.emit("gameChange", newGame);
                 }
-                else {
-                    flat[k] = v;
-                }
+                return; // don't expose the internal property in _data
             }
-        };
-        merge(parsed);
-        this._data = { ...this._data, ...flat };
-        this.emit("update", this._data);
+            this._data = { ...this._data, [name]: value };
+            this.emit("update", this._data);
+        }
+    }
+    _send(msg) {
+        this._socket?.write(msg + "\n");
+    }
+}
+function parseValue(raw, type) {
+    if (raw === "(null)")
+        return undefined;
+    switch (type) {
+        case "integer": return parseInt(raw, 10);
+        case "double": return parseFloat(raw);
+        case "boolean": return raw.toLowerCase() === "true";
+        case "string": return raw;
+        case "timespan": return raw;
+        default: return isNaN(Number(raw)) ? raw : Number(raw);
     }
 }
 

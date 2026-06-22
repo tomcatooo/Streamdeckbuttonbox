@@ -1,163 +1,171 @@
 import { EventEmitter } from "events";
-import * as http from "http";
-import WebSocket from "ws";
+import * as net from "net";
 
 const SIMHUB_HOST = "127.0.0.1";
-const SIMHUB_PORT = 8888;
-const POLL_MS = 100;
-const WS_RECONNECT_MS = 5000;
-const WS_CONNECT_TIMEOUT_MS = 3000;
+const PROP_SERVER_PORT = 18082;
+const RECONNECT_MS = 5000;
+// Internal property used to track the active game — never exposed to callers.
+const GAME_NAME_PROP = "dcp.GameName";
 
 export type TelemetryData = Record<string, unknown>;
 
-// Augment EventEmitter with typed overloads so callers get proper types.
 export declare interface SimHubClient {
-  on(event: "update", listener: (data: TelemetryData) => void): this;
-  emit(event: "update", data: TelemetryData): boolean;
+  on(event: "update",     listener: (data: TelemetryData) => void): this;
+  on(event: "gameChange", listener: (game: string) => void): this;
+  emit(event: "update",     data: TelemetryData): boolean;
+  emit(event: "gameChange", game: string): boolean;
 }
 
-// Connects to SimHub and emits "update" events with the latest telemetry.
-// Tries a WebSocket connection first (SimHub Dashboard Server on port 8888),
-// falls back to HTTP polling if the WS isn't reachable within 3 seconds.
+// Implements the SimHub Property Server TCP protocol (port 18082).
+//
+// Protocol summary:
+//   → connect
+//   ← "SimHub Property Server\n"
+//   → "subscribe <propertyName>\n"
+//   ← "Property <name> <type> <value>\n"  (on connect + on every change, ≤10 Hz)
+//   → "unsubscribe <propertyName>\n"
+//
+// Reference-counted subscriptions let multiple buttons share the same
+// property without double-subscribing or premature unsubscribes.
 export class SimHubClient extends EventEmitter {
-  private _ws: WebSocket | null = null;
-  private _pollTimer: ReturnType<typeof setInterval> | null = null;
-  private _data: TelemetryData = {};
-  private _wsConnected = false;
+  private _socket: net.Socket | null = null;
+  private _buf = "";
+  private _connected = false;
   private _stopped = false;
+  private _data: TelemetryData = {};
+  private _gameName = "";
+
+  // property → number of callers currently watching it
+  private readonly _refCounts = new Map<string, number>();
 
   start(): void {
-    this._tryWebSocket();
+    this._connect();
   }
 
   stop(): void {
     this._stopped = true;
-    this._ws?.terminate();
-    this._ws = null;
-    if (this._pollTimer !== null) {
-      clearInterval(this._pollTimer);
-      this._pollTimer = null;
-    }
+    this._socket?.destroy();
+    this._socket = null;
   }
 
   getData(): TelemetryData {
     return this._data;
   }
 
-  private _tryWebSocket(): void {
+  getGameName(): string {
+    return this._gameName;
+  }
+
+  subscribe(property: string): void {
+    if (!property) return;
+    const prev = this._refCounts.get(property) ?? 0;
+    this._refCounts.set(property, prev + 1);
+    if (prev === 0 && this._connected) {
+      this._send(`subscribe ${property}`);
+    }
+  }
+
+  unsubscribe(property: string): void {
+    if (!property) return;
+    const prev = this._refCounts.get(property) ?? 0;
+    if (prev <= 1) {
+      this._refCounts.delete(property);
+      if (this._connected) this._send(`unsubscribe ${property}`);
+    } else {
+      this._refCounts.set(property, prev - 1);
+    }
+  }
+
+  private _connect(): void {
     if (this._stopped) return;
 
-    let ws: WebSocket;
-    try {
-      ws = new WebSocket(`ws://${SIMHUB_HOST}:${SIMHUB_PORT}/`);
-    } catch {
-      this._startPolling();
-      return;
-    }
+    const socket = net.createConnection(PROP_SERVER_PORT, SIMHUB_HOST);
+    socket.setEncoding("utf8");
+    socket.setTimeout(3000);
+    this._buf = "";
 
-    const timeout = setTimeout(() => {
-      if (!this._wsConnected) {
-        ws.terminate();
-        this._startPolling();
+    socket.on("connect", () => {
+      socket.setTimeout(0);
+      this._socket = socket;
+    });
+
+    socket.on("data", (chunk: string) => {
+      this._buf += chunk;
+      const lines = this._buf.split("\n");
+      this._buf = lines.pop() ?? "";
+      for (const line of lines) {
+        this._handleLine(line.trim());
       }
-    }, WS_CONNECT_TIMEOUT_MS);
-
-    ws.on("open", () => {
-      clearTimeout(timeout);
-      this._wsConnected = true;
-      this._ws = ws;
     });
 
-    ws.on("message", (raw) => {
-      this._parseMessage(raw.toString());
-    });
+    socket.on("timeout", () => socket.destroy());
+    socket.on("error",   () => { /* close will trigger reconnect */ });
 
-    ws.on("error", () => {
-      clearTimeout(timeout);
-      if (!this._wsConnected) this._startPolling();
-    });
-
-    ws.on("close", () => {
-      clearTimeout(timeout);
-      this._wsConnected = false;
-      this._ws = null;
+    socket.on("close", () => {
+      this._socket = null;
+      this._connected = false;
       if (!this._stopped) {
-        setTimeout(() => this._tryWebSocket(), WS_RECONNECT_MS);
+        setTimeout(() => this._connect(), RECONNECT_MS);
       }
     });
   }
 
-  private _startPolling(): void {
-    if (this._stopped || this._pollTimer !== null) return;
-    this._pollTimer = setInterval(() => this._poll(), POLL_MS);
-  }
+  private _handleLine(line: string): void {
+    if (!line) return;
 
-  private _poll(): void {
-    const options: http.RequestOptions = {
-      hostname: SIMHUB_HOST,
-      port: SIMHUB_PORT,
-      path: "/api/v5/status",
-      method: "GET",
-      timeout: 500,
-    };
-
-    const req = http.request(options, (res) => {
-      let body = "";
-      res.on("data", (c: Buffer) => {
-        body += c;
-      });
-      res.on("end", () => {
-        try {
-          this._parseMessage(body);
-        } catch {
-          /* ignore malformed responses */
-        }
-      });
-    });
-
-    req.on("error", () => {
-      /* SimHub not running — silently skip */
-    });
-    req.on("timeout", () => {
-      try {
-        req.destroy();
-      } catch {
-        /* ignore */
+    // Greeting — subscribe to game name + everything callers registered before connect
+    if (line === "SimHub Property Server") {
+      this._connected = true;
+      this._send(`subscribe ${GAME_NAME_PROP}`);
+      for (const property of this._refCounts.keys()) {
+        this._send(`subscribe ${property}`);
       }
-    });
-    req.end();
-  }
-
-  // Handles both raw JSON and SimHub's "update;{json}" WS wire format.
-  // Also flattens known wrapper keys (NewData, data) one level deep.
-  private _parseMessage(raw: string): void {
-    let parsed: unknown;
-    try {
-      const jsonStr = raw.startsWith("update;") ? raw.slice(7) : raw;
-      parsed = JSON.parse(jsonStr);
-    } catch {
       return;
     }
 
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return;
+    // "Property <name> <type> <value>"
+    if (line.startsWith("Property ")) {
+      const rest = line.slice(9);
+      const s1 = rest.indexOf(" ");
+      if (s1 === -1) return;
+      const name = rest.slice(0, s1);
+      const tail = rest.slice(s1 + 1);
+      const s2 = tail.indexOf(" ");
+      if (s2 === -1) return;
+      const type     = tail.slice(0, s2);
+      const rawValue = tail.slice(s2 + 1);
 
-    const flat: TelemetryData = {};
-    const merge = (obj: Record<string, unknown>): void => {
-      for (const [k, v] of Object.entries(obj)) {
-        if (v !== null && typeof v === "object" && !Array.isArray(v)) {
-          if (k === "NewData" || k === "data") {
-            merge(v as Record<string, unknown>);
-          } else {
-            flat[k] = v;
-          }
-        } else {
-          flat[k] = v;
+      const value = parseValue(rawValue, type);
+      if (value === undefined) return;
+
+      // Track game name changes internally and emit gameChange
+      if (name === GAME_NAME_PROP) {
+        const newGame = String(value);
+        if (newGame !== this._gameName) {
+          this._gameName = newGame;
+          this.emit("gameChange", newGame);
         }
+        return; // don't expose the internal property in _data
       }
-    };
-    merge(parsed as Record<string, unknown>);
 
-    this._data = { ...this._data, ...flat };
-    this.emit("update", this._data);
+      this._data = { ...this._data, [name]: value };
+      this.emit("update", this._data);
+    }
+  }
+
+  private _send(msg: string): void {
+    this._socket?.write(msg + "\n");
+  }
+}
+
+function parseValue(raw: string, type: string): unknown {
+  if (raw === "(null)") return undefined;
+  switch (type) {
+    case "integer":  return parseInt(raw, 10);
+    case "double":   return parseFloat(raw);
+    case "boolean":  return raw.toLowerCase() === "true";
+    case "string":   return raw;
+    case "timespan": return raw;
+    default:         return isNaN(Number(raw)) ? raw : Number(raw);
   }
 }
