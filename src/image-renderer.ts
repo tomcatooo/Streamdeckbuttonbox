@@ -57,9 +57,9 @@ function renderOff(label: string, colorOff: string, icon?: string): string {
   const labelY    = iconPath ? 67 : 40;
 
   const iconSvg = iconPath
-    ? `<svg x="4" y="4" width="64" height="50" viewBox="0 0 72 72">` +
+    ? `<g transform="translate(11,4) scale(0.6944)">` +
       `<path d="${iconPath}" fill="${iconColor}"/>` +
-      `</svg>`
+      `</g>`
     : "";
 
   return [
@@ -82,9 +82,9 @@ function renderOn(label: string, colorOn: string, icon?: string): string {
   const labelY    = iconPath ? 67 : 40;
 
   const iconSvg = iconPath
-    ? `<svg x="4" y="4" width="64" height="50" viewBox="0 0 72 72">` +
+    ? `<g transform="translate(11,4) scale(0.6944)">` +
       `<path d="${iconPath}" fill="${iconColor}"/>` +
-      `</svg>`
+      `</g>`
     : "";
 
   const corners = [

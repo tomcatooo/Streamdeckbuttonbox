@@ -74,7 +74,14 @@ export class TelemetryButtonAction extends SingletonAction<ButtonSettings> {
       subscribedProperty: property,
     });
 
-    ev.action.setImage(renderButtonSvg({ label: "---", isActive: false })).catch(() => {});
+    const cfg = resolveConfig(ev.payload.settings);
+    ev.action.setImage(renderButtonSvg({
+      label:    cfg.label,
+      isActive: false,
+      colorOff: cfg.colorOff,
+      colorOn:  cfg.colorOn,
+      icon:     cfg.icon || undefined,
+    })).catch(() => {});
     if (property) this._simhub.subscribe(property);
   }
 

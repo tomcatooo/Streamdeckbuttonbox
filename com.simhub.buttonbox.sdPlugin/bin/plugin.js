@@ -9228,9 +9228,9 @@ function renderOff(label, colorOff, icon) {
     const iconPath = icon ? ICON_PATHS[icon] : undefined;
     const labelY = iconPath ? 67 : 40;
     const iconSvg = iconPath
-        ? `<svg x="4" y="4" width="64" height="50" viewBox="0 0 72 72">` +
+        ? `<g transform="translate(11,4) scale(0.6944)">` +
             `<path d="${iconPath}" fill="${iconColor}"/>` +
-            `</svg>`
+            `</g>`
         : "";
     return [
         `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">`,
@@ -9250,9 +9250,9 @@ function renderOn(label, colorOn, icon) {
     const iconPath = icon ? ICON_PATHS[icon] : undefined;
     const labelY = iconPath ? 67 : 40;
     const iconSvg = iconPath
-        ? `<svg x="4" y="4" width="64" height="50" viewBox="0 0 72 72">` +
+        ? `<g transform="translate(11,4) scale(0.6944)">` +
             `<path d="${iconPath}" fill="${iconColor}"/>` +
-            `</svg>`
+            `</g>`
         : "";
     const corners = [
         `<path d="M4 14 L4 4 L14 4"   stroke="${bright}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`,
@@ -9334,7 +9334,14 @@ let TelemetryButtonAction = (() => {
                 lastActive: null,
                 subscribedProperty: property,
             });
-            ev.action.setImage(renderButtonSvg({ label: "---", isActive: false })).catch(() => { });
+            const cfg = resolveConfig(ev.payload.settings);
+            ev.action.setImage(renderButtonSvg({
+                label: cfg.label,
+                isActive: false,
+                colorOff: cfg.colorOff,
+                colorOn: cfg.colorOn,
+                icon: cfg.icon || undefined,
+            })).catch(() => { });
             if (property)
                 this._simhub.subscribe(property);
         }
