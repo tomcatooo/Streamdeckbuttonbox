@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Telemetry Button</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      font-size: 13px;
+      color: #d8d8d8;
+      background: transparent;
+      padding: 10px 12px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+
+    label {
+      flex: 0 0 86px;
+      color: #9a9a9a;
+      font-size: 11px;
+      text-align: right;
+    }
+
+    select,
+    input[type="text"],
+    input[type="number"] {
+      flex: 1;
+      background: #2a2a2a;
+      border: 1px solid #444;
+      border-radius: 4px;
+      color: #e0e0e0;
+      padding: 4px 7px;
+      font-size: 12px;
+      outline: none;
+    }
+
+    select:focus, input:focus { border-color: #5a8fd4; }
+
+    input[type="color"] {
+      flex: 0 0 44px;
+      height: 26px;
+      padding: 2px;
+      border: 1px solid #444;
+      border-radius: 4px;
+      background: #2a2a2a;
+      cursor: pointer;
+    }
+
+    .color-hint { flex: 1; font-size: 11px; color: #666; }
+
+    hr { border: none; border-top: 1px solid #2e2e2e; margin: 10px 0; }
+
+    .section {
+      font-size: 10px;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 7px;
+    }
+
+    .hint {
+      padding-left: 94px;
+      font-size: 10px;
+      color: #4a4a4a;
+      line-height: 1.5;
+      margin-top: -3px;
+      margin-bottom: 6px;
+    }
+
+    #status {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      margin-top: 6px;
+    }
+
+    #status.warn { background: #3a2800; color: #ccaa44; }
+    #status.ok   { background: #0e2e0e; color: #55cc55; }
+  </style>
+</head>
+<body>
+
+  <div class="section">Quick Setup</div>
+
+  <div class="row">
+    <label>Preset</label>
+    <select id="preset">
+      <option value="">— Custom —</option>
+      <option value="headlights">Headlights</option>
+      <option value="pitLimiter">Pit Limiter</option>
+      <option value="abs">ABS Active</option>
+      <option value="tc">TC Active</option>
+      <option value="engineIgnition">Engine Ignition</option>
+      <option value="flag">Yellow Flag</option>
+    </select>
+  </div>
+
+  <hr>
+  <div class="section">SimHub Property</div>
+
+  <div class="row">
+    <label>Property</label>
+    <input type="text" id="property" placeholder="e.g. Headlights">
+  </div>
+  <div class="hint">Exact property name from SimHub telemetry.<br>Check SimHub → Bindings for available names.</div>
+
+  <div class="row">
+    <label>Threshold</label>
+    <input type="number" id="threshold" placeholder="0.5" step="0.1" min="0">
+  </div>
+  <div class="hint">Button activates when value &gt; threshold.</div>
+
+  <hr>
+  <div class="section">Appearance</div>
+
+  <div class="row">
+    <label>Label</label>
+    <input type="text" id="label" placeholder="BUTTON" maxlength="10">
+  </div>
+
+  <div class="row">
+    <label>Icon</label>
+    <select id="icon">
+      <option value="">None</option>
+      <option value="headlights">Headlights / Sun</option>
+      <option value="pit">Pit (3 lines)</option>
+      <option value="abs">ABS (circle)</option>
+      <option value="tc">TC (triangle)</option>
+      <option value="flag">Flag</option>
+      <option value="fuel">Fuel</option>
+      <option value="ignition">Ignition (star)</option>
+      <option value="brake">Brake (rings)</option>
+    </select>
+  </div>
+
+  <div class="row">
+    <label>Off colour</label>
+    <input type="color" id="colorOff" value="#222222">
+    <span class="color-hint">inactive</span>
+  </div>
+
+  <div class="row">
+    <label>On colour</label>
+    <input type="color" id="colorOn" value="#1a6fd4">
+    <span class="color-hint">active</span>
+  </div>
+
+  <div id="status"></div>
+
+<script>
+  'use strict';
+
+  const PRESETS = {
+    headlights:     { property: 'Headlights',      label: 'LIGHTS',   colorOff: '#222222', colorOn: '#FFD700', icon: 'headlights' },
+    pitLimiter:     { property: 'PitLimiter',       label: 'PIT LIM',  colorOff: '#222222', colorOn: '#00CC44', icon: 'pit' },
+    abs:            { property: 'ABSActive',        label: 'ABS',      colorOff: '#222222', colorOn: '#FF3333', icon: 'abs' },
+    tc:             { property: 'TCActive',         label: 'TC',       colorOff: '#222222', colorOn: '#FF8800', icon: 'tc' },
+    engineIgnition: { property: 'EngineIgnitionOn', label: 'IGNITION', colorOff: '#222222', colorOn: '#FF3333', icon: 'ignition' },
+    flag:           { property: 'Flag_Yellow',      label: 'FLAG',     colorOff: '#222222', colorOn: '#FFD700', icon: 'flag' },
+  };
+
+  const FIELDS = ['property', 'label', 'colorOff', 'colorOn', 'icon', 'threshold'];
+
+  let settings = {};
+  let piUUID   = null;
+  let ws       = null;
+
+  function connectElgatoStreamDeckSocket(port, uuid, registerEvent, _info, actionInfoStr) {
+    piUUID = uuid;
+    try { settings = JSON.parse(actionInfoStr)?.payload?.settings ?? {}; } catch { /**/ }
+
+    ws = new WebSocket('ws://127.0.0.1:' + port);
+
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ event: registerEvent, uuid }));
+      ws.send(JSON.stringify({ event: 'getSettings', context: uuid }));
+    };
+
+    ws.onmessage = (evt) => {
+      let msg;
+      try { msg = JSON.parse(evt.data); } catch { return; }
+      if (msg.event === 'didReceiveSettings') {
+        settings = msg.payload?.settings ?? {};
+        populate();
+      }
+    };
+
+    populate();
+    bindEvents();
+  }
+
+  function populate() {
+    $('preset').value = settings.preset ?? '';
+    for (const f of FIELDS) {
+      if (settings[f] != null) $( f).value = settings[f];
+    }
+  }
+
+  function bindEvents() {
+    $('preset').addEventListener('change', () => {
+      const p = PRESETS[$('preset').value];
+      if (p) {
+        for (const [k, v] of Object.entries(p)) {
+          const el = $(k);
+          if (el) el.value = v;
+        }
+      }
+      save();
+    });
+
+    for (const f of FIELDS) {
+      const el = $(f);
+      if (el) { el.addEventListener('input', save); el.addEventListener('change', save); }
+    }
+  }
+
+  function save() {
+    const next = { preset: $('preset').value };
+    for (const f of FIELDS) { const el = $(f); if (el) next[f] = el.value; }
+    settings = next;
+
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ event: 'setSettings', context: piUUID, payload: settings }));
+      ws.send(JSON.stringify({
+        event: 'sendToPlugin',
+        context: piUUID,
+        action: 'com.simhub.buttonbox.telemetrybutton',
+        payload: { type: 'settingsChanged', settings },
+      }));
+    }
+
+    const missing = !next.property && !next.preset;
+    const el = document.getElementById('status');
+    el.className = missing ? 'warn' : 'ok';
+    el.textContent = missing
+      ? 'Choose a preset or enter a SimHub property name.'
+      : next.preset
+        ? `Using preset: ${next.preset}`
+        : `Watching: ${next.property}`;
+  }
+
+  const $ = (id) => document.getElementById(id);
+</script>
+</body>
+</html>

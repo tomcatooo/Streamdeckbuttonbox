@@ -1,0 +1,39 @@
+{
+  "Author": "SimHub ButtonBox",
+  "CodePath": "bin/plugin.js",
+  "Description": "Dynamic button box that reacts to SimHub telemetry. Button images update live to show on/off state for headlights, pit limiter, ABS, TC, and any custom SimHub property.",
+  "Name": "SimHub ButtonBox",
+  "Icon": "images/plugin-icon",
+  "Version": "1.0.0",
+  "SDKVersion": 2,
+  "Category": "SimHub",
+  "CategoryIcon": "images/category-icon",
+  "URL": "https://github.com/tomcatooo/streamdeckbuttonbox",
+  "UUID": "com.simhub.buttonbox",
+  "Actions": [
+    {
+      "Icon": "images/actions/telemetry-button",
+      "Name": "Telemetry Button",
+      "States": [
+        {
+          "Image": "images/actions/state-off",
+          "Name": "Off / Inactive"
+        },
+        {
+          "Image": "images/actions/state-on",
+          "Name": "On / Active"
+        }
+      ],
+      "SupportedInMultiActions": false,
+      "Tooltip": "A button that mirrors a SimHub telemetry property — lights up when the property is active.",
+      "UUID": "com.simhub.buttonbox.telemetrybutton",
+      "PropertyInspectorPath": "inspector/telemetry-button.html"
+    }
+  ],
+  "OS": [
+    { "MinimumVersion": "10",    "Platform": "windows" },
+    { "MinimumVersion": "10.15", "Platform": "mac"     }
+  ],
+  "Software": { "MinimumVersion": "6.7" },
+  "Nodejs": { "Version": "20", "Debug": "enabled" }
+}

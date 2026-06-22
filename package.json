@@ -1,0 +1,26 @@
+{
+  "name": "streamdeck-simhub-buttonbox",
+  "version": "1.0.0",
+  "description": "Stream Deck plugin — dynamic button box driven by SimHub telemetry",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c --environment NODE_ENV:production",
+    "dev": "rollup -c -w",
+    "icons": "node scripts/generate-icons.cjs"
+  },
+  "dependencies": {
+    "@elgato/streamdeck": "^2.1.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-node-resolve": "^15.3.0",
+    "@rollup/plugin-typescript": "^12.1.1",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.0",
+    "rollup": "^4.28.1",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2"
+  }
+}
