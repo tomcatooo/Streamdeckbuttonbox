@@ -1,5 +1,5 @@
 {
-  "Author": "SimHub ButtonBox",
+  "Author": "Tom Robinson",
   "CodePath": "bin/plugin.js",
   "Description": "Dynamic button box that reacts to SimHub telemetry. Button images update live to show on/off state for headlights, pit limiter, ABS, TC, and any custom SimHub property.",
   "Name": "SimHub ButtonBox",
